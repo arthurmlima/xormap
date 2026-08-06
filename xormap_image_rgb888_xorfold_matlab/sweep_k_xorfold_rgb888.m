@@ -5,9 +5,10 @@
 % iterations regardless of K -- that's the whole point of this
 % experiment -- so this is the most expensive sweep in the project: at
 % K=24:24:384 x 2 encryptions x 51 images, that's roughly 1.1 billion
-% xormap_transform_fast calls. Parallelized across a 24-worker local pool
-% with one (image, K) pair per task (816 tasks) so the huge aerials
-% images (24 x 1024x1024, one 2250x2250) don't strand a single worker.
+% xormap_transform_fast calls. Parallelized across a local pool sized to
+% the host's core count, with one (image, K) pair per task (816 tasks) so
+% the huge aerials images (24 x 1024x1024, one 2250x2250) don't strand a
+% single worker.
 %
 % Run xormap_image_rgb888_matlab/download_images.m first if images/ isn't
 % populated yet.
@@ -48,17 +49,21 @@ num_tasks = numel(task_image_idx);
 fprintf('%d images x %d K values = %d tasks\n', num_images, num_K, num_tasks);
 
 % --- parallel pool ---
+% Size the pool to this machine rather than to a fixed 24: the original
+% run used a 24-thread i9, but the (image, K) task split works on any core
+% count -- fewer workers just means proportionally more wall-clock time.
+num_workers = min(feature('numcores'), num_tasks);
 pool = gcp('nocreate');
-if isempty(pool) || pool.NumWorkers < 24
+if isempty(pool) || pool.NumWorkers ~= num_workers
     if ~isempty(pool)
         delete(pool);
     end
     c = parcluster('local');
-    if c.NumWorkers < 24
-        c.NumWorkers = 24;
+    if c.NumWorkers < num_workers
+        c.NumWorkers = num_workers;
         saveProfile(c);
     end
-    pool = parpool('local', 24);
+    pool = parpool('local', num_workers);
 end
 fprintf('Using parallel pool with %d workers.\n', pool.NumWorkers);
 
