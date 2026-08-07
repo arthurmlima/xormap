@@ -3,8 +3,8 @@ function bytes = xormap_keystream_fast(seed_bits, num_bytes)
 %   BYTES = XORMAP_KEYSTREAM_FAST(SEED_BITS, NUM_BYTES) produces exactly
 %   the same keystream as XORMAP_KEYSTREAM -- same register recurrence,
 %   same K-bit-per-iteration concatenation, same truncation -- but built on
-%   XORMAP_TRANSFORM_FAST (../xormap_image_rgb565_xorfold_matlab), the
-%   prefix-XOR reformulation of the canonical O(K^2) xormap_transform.
+%   XORMAP_TRANSFORM_FAST (../xormap_matlab), the prefix-XOR
+%   reformulation of the canonical O(K^2) xormap_transform.
 %
 %   XORMAP_TRANSFORM_FAST is sequence-equivalent to xormap_transform by
 %   construction and is proved so per-K over every single-bit basis state
@@ -17,9 +17,8 @@ function bytes = xormap_keystream_fast(seed_bits, num_bytes)
 %   xormap_keystream_words_fast.
 %
 %   Each iteration still yields K bits, i.e. K/8 pixels of an 8-bit
-%   grayscale image, so the iteration count SHRINKS as K grows -- the
-%   opposite of the xorfold experiments, where one iteration always feeds
-%   exactly one pixel.
+%   grayscale image, so the iteration count SHRINKS as K grows: a wider
+%   register buys proportionally more keystream per state update.
 
     k = numel(seed_bits);
     plan = xormap_fast_plan(k);
@@ -40,8 +39,7 @@ function bytes = xormap_keystream_fast(seed_bits, num_bytes)
     for it = 1:num_iters
         % Inlined XORMAP_TRANSFORM_FAST: the public helper re-validates its
         % arguments on every call, which is worth it for one-off use and
-        % pure overhead in a hot loop (same pattern as the xorfold
-        % projects' keystream generators).
+        % pure overhead in a hot loop like this one.
         prefix = [false, mod(cumsum(v), 2) ~= 0];
         next_v = xor(prefix(right_plus_1), prefix(left));
         next_v(odd_positions) = xor(next_v(odd_positions), v(centers));

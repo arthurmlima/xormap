@@ -11,7 +11,6 @@ function test_xormap_rgb888()
     addpath(fullfile(this_dir, '..', 'xormap_matlab'));
     addpath(fullfile(this_dir, '..', 'xormap_image_matlab'));
     addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_matlab'));      % naive xormap_keystream_words (oracle)
-    addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_xorfold_matlab')); % xormap_fast_plan / xormap_transform_fast
 
     test_fast_matches_naive_keystream();
     test_pack_unpack_roundtrip();
@@ -76,8 +75,7 @@ function test_encrypt_decrypt_roundtrip()
 end
 
 function bits = deterministic_bits(k, salt)
-% A reproducible nontrivial pattern, independent of MATLAB's global RNG
-% (mirrors the sibling xorfold test's helper).
+% A reproducible nontrivial pattern, independent of MATLAB's global RNG.
     indices = uint64(0:(k - 1));
     values = indices .* uint64(73 + salt) + ...
              idivide(indices, uint64(3), 'floor') .* uint64(19) + ...

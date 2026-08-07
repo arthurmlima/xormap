@@ -4,12 +4,12 @@ function words = xormap_keystream_words_fast(seed_bits, word_width, num_words)
 %   Word-width generalization of xormap_image_rgb565_matlab's
 %   xormap_keystream_words.m (which concatenates K-bit iterations and
 %   slices an arbitrary prefix), but built on XORMAP_TRANSFORM_FAST
-%   (../xormap_image_rgb565_xorfold_matlab) instead of the canonical O(K^2)
-%   xormap_transform, since the K=24:24:384 sweep over every SIPI color
-%   image (51 images, ~35M pixels) is impractical at O(K^2) per state
-%   update. XORMAP_TRANSFORM_FAST is exactly sequence-equivalent to
-%   xormap_transform (see test_xormap_rgb888.m and the existing xorfold
-%   test suite for the proof), so this produces bit-for-bit the same
+%   (../xormap_matlab) instead of the canonical O(K^2) xormap_transform,
+%   since the K=24:24:384 sweep over every SIPI color image (51 images,
+%   ~35M pixels) is impractical at O(K^2) per state update.
+%   XORMAP_TRANSFORM_FAST is exactly sequence-equivalent to
+%   xormap_transform (test_xormap_rgb888.m proves it per-K over every
+%   single-bit basis state), so this produces bit-for-bit the same
 %   keystream xormap_keystream_words would, just faster.
 %
 %   Each iteration advances the register exactly the way Genv_xormap.m's

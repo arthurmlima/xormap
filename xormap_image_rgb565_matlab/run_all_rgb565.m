@@ -110,7 +110,8 @@ for ii = 1:numel(images)
     subplot(1, 2, 1); image(rgb565_to_rgb888_preview(plain)); axis image off; title('Plain (RGB565 preview)');
     subplot(1, 2, 2); image(rgb565_to_rgb888_preview(cipher)); axis image off; title('Cipher (RGB565 preview)');
     sgtitle(images(ii).name, 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_images.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_images.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     % --- per-channel histograms: rows = plain/cipher, cols = R/G/B ---
@@ -124,7 +125,8 @@ for ii = 1:numel(images)
         title(sprintf('Cipher %s', CHANNELS{c}));
     end
     sgtitle(images(ii).name, 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_histogram.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_histogram.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     % --- per-channel horizontal-correlation scatter: rows = plain/cipher, cols = R/G/B ---
@@ -141,7 +143,8 @@ for ii = 1:numel(images)
         xlabel('pixel(x,y)'); ylabel('pixel(x,y+1)'); title(sprintf('Cipher %s', CHANNELS{c}));
     end
     sgtitle([images(ii).name ' (horizontal)'], 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_correlation.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_correlation.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     summary_entropy(end + 1, :) = {images(ii).name, ...

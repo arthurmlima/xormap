@@ -16,7 +16,6 @@ function test_xormap_gray_fast()
     this_dir = fileparts(mfilename('fullpath'));
     addpath(this_dir);
     addpath(fullfile(this_dir, '..', 'xormap_matlab'));
-    addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_xorfold_matlab'));  % fast plan/transform
 
     K_VALUES = 24:24:384;
 

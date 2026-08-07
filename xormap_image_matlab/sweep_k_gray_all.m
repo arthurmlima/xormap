@@ -11,9 +11,9 @@
 % keystream's K-bit iterations tile the 8-bit pixel grid exactly.
 %
 % Cost note: one iteration yields K/8 pixels, so iterations per encryption
-% = ceil(N*8/K) and the work SHRINKS as K grows -- the opposite of the
-% xorfold experiments. Total across the sweep is ~117M state updates,
-% cheap enough that the fast transform makes this a couple of minutes.
+% = ceil(N*8/K) and the work SHRINKS as K grows. Total across the sweep is
+% ~117M state updates, cheap enough that the fast transform makes this a
+% couple of minutes.
 %
 % Run download_images_all_gray.m first if images/manifest_gray.csv isn't
 % there yet.
@@ -24,7 +24,6 @@ clc
 this_dir = fileparts(mfilename('fullpath'));
 addpath(this_dir);
 addpath(fullfile(this_dir, '..', 'xormap_matlab'));
-addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_xorfold_matlab')); % xormap_fast_plan / xormap_transform_fast
 
 img_dir = fullfile(this_dir, 'images');
 results_dir = fullfile(this_dir, 'results');
@@ -158,10 +157,10 @@ for m = 1:size(metrics, 1)
 end
 sgtitle(sprintf(['xormap grayscale: every SIPI grayscale image (%d), ' ...
     'K=24:24:384'], num_images));
-png_path = fullfile(results_dir, 'sweep_k_gray_all.png');
-exportgraphics(fh, png_path, 'Resolution', 200);
+pdf_path = fullfile(results_dir, 'sweep_k_gray_all.pdf');
+exportgraphics(fh, pdf_path, 'ContentType', 'vector', 'BackgroundColor', 'white');
 close(fh);
-fprintf('Wrote %s\n', png_path);
+fprintf('Wrote %s\n', pdf_path);
 
 function [files, names, vols] = read_manifest(manifest_path, img_dir)
     fid = fopen(manifest_path);

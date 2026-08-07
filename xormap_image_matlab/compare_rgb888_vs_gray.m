@@ -28,25 +28,18 @@ function compare_rgb888_vs_gray()
     this_dir = fileparts(mfilename('fullpath'));
     addpath(this_dir);   % npcr_uaci_ideal
 
-    gray_csv = fullfile(this_dir, 'results', 'sweep_k_gray_all.csv');
-    rgb_csv  = fullfile(this_dir, '..', 'xormap_image_rgb888_matlab', ...
-                        'results', 'sweep_k_rgb888.csv');
-    for p = {gray_csv, rgb_csv}
-        if ~exist(p{1}, 'file')
-            error('compare_rgb888_vs_gray:missingCsv', ...
-                'Missing %s -- run the corresponding sweep first.', p{1});
-        end
-    end
-
-    gray = read_sweep_csv(gray_csv);
-    rgb  = read_sweep_csv(rgb_csv);
+    % read_sweep.m owns every detail of loading these CSVs: the differing
+    % column names between the two sweeps, the datetime mis-parse of the
+    % image column, and each run's NPCR/UACI ideal.
+    [gray, gray_meta] = read_sweep('gray');
+    [rgb,  rgb_meta]  = read_sweep('rgb888');
 
     K_VALUES = (24:24:384).';
     assert(isequal(unique(gray.K), K_VALUES) && isequal(unique(rgb.K), K_VALUES), ...
         'both sweeps must cover K = 24:24:384');
 
-    n_rgb  = numel(unique(rgb.image));
-    n_gray = numel(unique(gray.image));
+    n_rgb  = rgb_meta.num_images;
+    n_gray = gray_meta.num_images;
 
     out_dir = fullfile(this_dir, 'results', 'comparison');
     if ~exist(out_dir, 'dir')
@@ -59,16 +52,16 @@ function compare_rgb888_vs_gray()
     GRAY   = [0.62 0.62 0.60];
     INK    = [0.043 0.043 0.043];
 
-    [npcr_ideal24, uaci_ideal24] = npcr_uaci_ideal(24);   % RGB888 packed word
-    [npcr_ideal8,  uaci_ideal8]  = npcr_uaci_ideal(8);    % grayscale pixel
+    npcr_ideal24 = rgb_meta.npcr_ideal;   uaci_ideal24 = rgb_meta.uaci_ideal;
+    npcr_ideal8  = gray_meta.npcr_ideal;  uaci_ideal8  = gray_meta.uaci_ideal;
 
     left_label  = sprintf('RGB888: %d SIPI colour images', n_rgb);
     right_label = sprintf('Grayscale: %d SIPI grayscale images', n_gray);
 
     % --- entropy ---------------------------------------------------------
     make_single_metric_figure(K_VALUES, ...
-        rgb.K,  rgb.mean_entropy_cipher,  left_label, 8.0, ...
-        gray.K, gray.entropy_cipher,      right_label, 8.0, ...
+        rgb.K,  rgb.entropy,  left_label, 8.0, ...
+        gray.K, gray.entropy, right_label, 8.0, ...
         'Cipher entropy (bits per 8-bit channel)', 'ideal = 8', ...
         {'Cipher entropy: RGB888 vs grayscale', ...
          'identical axis limits on both panels \bullet K = 24:24:384 \bullet ideal 8 bits/channel'}, ...
@@ -76,8 +69,8 @@ function compare_rgb888_vs_gray()
 
     % --- correlation -----------------------------------------------------
     make_single_metric_figure(K_VALUES, ...
-        rgb.K,  rgb.mean_abs_corrH_cipher, left_label, 0.0, ...
-        gray.K, gray.abs_corrH_cipher,     right_label, 0.0, ...
+        rgb.K,  rgb.corrH, left_label, 0.0, ...
+        gray.K, gray.corrH, right_label, 0.0, ...
         'Mean |horizontal correlation| of cipher', 'ideal = 0', ...
         {'Adjacent-pixel correlation: RGB888 vs grayscale', ...
          'identical axis limits on both panels \bullet K = 24:24:384 \bullet ideal 0'}, ...
@@ -154,8 +147,8 @@ function make_npcr_uaci_figure(K_VALUES, T1, t1, npcr_i1, uaci_i1, ...
 % grayscale's for L=2^8, so a single shared ideal would be wrong for one
 % of them (see the comparability note at the top of this file).
 
-    npcr1 = T1.npcr_packed;  uaci1 = T1.uaci_packed;   % RGB888 columns
-    npcr2 = T2.npcr;         uaci2 = T2.uaci;          % grayscale columns
+    npcr1 = T1.npcr;  uaci1 = T1.uaci;   % both tables carry the same
+    npcr2 = T2.npcr;  uaci2 = T2.uaci;   % schema, courtesy of read_sweep
 
     npcr_lims = shared_limits([npcr1; npcr2], [npcr_i1; npcr_i2]);
     uaci_lims = shared_limits([uaci1; uaci2], [uaci_i1; uaci_i2]);
@@ -236,17 +229,6 @@ end
 
 % ---------------------------------------------------------------------------
 
-function T = read_sweep_csv(path)
-% readtable guesses datetime for the image-name column -- SIPI names like
-% '4.1.01' and '5.1.09' parse as dates, so unique() then counts something
-% meaningless. Pin that column to text.
-    opts = detectImportOptions(path);
-    if ismember('image', opts.VariableNames)
-        opts = setvartype(opts, 'image', 'string');
-    end
-    T = readtable(path, opts);
-end
-
 function m = group_means(k, v, K_VALUES)
     m = arrayfun(@(K) mean(v(k == K)), K_VALUES);
 end
@@ -301,12 +283,11 @@ function style_axes(ax, ink)
 end
 
 function export_figure(fh, out_stem)
-% Vector PDF only -- resolution-independent, and the only export path that
-% renders these figures faithfully. MATLAB R2026a's raster export drops
-% primitives in the second tile of a 1x2 yyaxis layout: at 600 dpi the
-% whole right-hand point cloud and its line markers vanish, and even at
-% 300 dpi glyphs come out broken (the '384' x tick label). print -dpng has
-% the same fault. The vector path is unaffected.
+% Vector PDF only, by project policy and because it is the only export
+% path that renders these figures faithfully: MATLAB R2026a's raster
+% export drops primitives in the second tile of a 1x2 yyaxis layout (the
+% whole right-hand point cloud and its line markers, plus broken glyphs).
+% The vector path is unaffected.
     exportgraphics(fh, [out_stem '.pdf'], 'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
     fprintf('  %s.pdf (vector)\n', out_stem);

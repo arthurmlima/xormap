@@ -86,7 +86,8 @@ for ii = 1:numel(images)
     subplot(1, 2, 1); imagesc(plain); axis image; colormap(gca, gray(256)); title('Plain'); colorbar;
     subplot(1, 2, 2); imagesc(cipher); axis image; colormap(gca, gray(256)); title('Cipher'); colorbar;
     sgtitle(images(ii).name, 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_images.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_images.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     % --- histograms ---
@@ -94,7 +95,8 @@ for ii = 1:numel(images)
     subplot(1, 2, 1); plot_histogram(plain); title('Plain histogram');
     subplot(1, 2, 2); plot_histogram(cipher); title('Cipher histogram');
     sgtitle(images(ii).name, 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_histogram.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_histogram.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     % --- adjacent-pixel scatter (horizontal direction) ---
@@ -106,7 +108,8 @@ for ii = 1:numel(images)
     subplot(1, 2, 2); scatter(xh_c, yh_c, 4, 'filled'); axis([0 255 0 255]); axis square;
     xlabel('pixel(x,y)'); ylabel('pixel(x,y+1)'); title('Cipher (horizontal)');
     sgtitle(images(ii).name, 'Interpreter', 'none');
-    saveas(fh, fullfile(results_dir, [tag '_correlation.png']));
+    exportgraphics(fh, fullfile(results_dir, [tag '_correlation.pdf']), ...
+        'ContentType', 'vector', 'BackgroundColor', 'white');
     close(fh);
 
     summary(end + 1, :) = {images(ii).name, e_plain, e_cipher, ...

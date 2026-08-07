@@ -21,7 +21,6 @@ addpath(this_dir);
 addpath(fullfile(this_dir, '..', 'xormap_matlab'));
 addpath(fullfile(this_dir, '..', 'xormap_image_matlab'));
 addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_matlab'));       % bits_to_words
-addpath(fullfile(this_dir, '..', 'xormap_image_rgb565_xorfold_matlab')); % xormap_fast_plan / xormap_transform_fast
 
 img_dir = fullfile(this_dir, 'images');
 results_dir = fullfile(this_dir, 'results');
@@ -145,10 +144,10 @@ for m = 1:size(metrics, 1)
     end
 end
 sgtitle(sprintf('xormap RGB888 (non-fold): every SIPI color image (%d), K=24:24:384', num_images));
-png_path = fullfile(results_dir, 'sweep_k_rgb888.png');
-saveas(fh, png_path);
+pdf_path = fullfile(results_dir, 'sweep_k_rgb888.pdf');
+exportgraphics(fh, pdf_path, 'ContentType', 'vector', 'BackgroundColor', 'white');
 close(fh);
-fprintf('Wrote %s\n', png_path);
+fprintf('Wrote %s\n', pdf_path);
 
 function [files, names] = read_manifest(manifest_path, img_dir)
     fid = fopen(manifest_path);

@@ -84,8 +84,8 @@ NPCR/UACI on the full packed 16-bit word:
 | Peppers | 96.8678 | 34.3997 | 98.4653 | 33.8965 | 96.8502 | 34.3737 |
 
 Round-trip (`decrypt(encrypt(P)) == P`) passes for all three images. Per
-image, `results/<name>_images.png` (color preview, plain vs. cipher),
-`_histogram.png` and `_correlation.png` (both 2x3: rows plain/cipher,
+image, `results/<name>_images.pdf` (color preview, plain vs. cipher),
+`_histogram.pdf` and `_correlation.pdf` (both 2x3: rows plain/cipher,
 columns R/G/B) show the full picture; `results/results.md` has the
 horizontal-correlation table.
 
@@ -95,7 +95,7 @@ Same sweep as the grayscale pipeline, `K = 8:4:512` (127 values), tracking
 mean normalized entropy (each channel's entropy / its own max) and mean
 |horizontal correlation| across channels, plus packed-word NPCR/UACI.
 Same finding as grayscale, including the same exception
-(`results/sweep_k_rgb565.png`, `results/sweep_k_rgb565.csv`): **K=8 is
+(`results/sweep_k_rgb565.pdf`, `results/sweep_k_rgb565.csv`): **K=8 is
 visibly degraded** on every image — normalized entropy dips to 0.91-0.99
 (vs. ~1.0), mean |horizontal correlation| spikes to 0.13-0.43 (vs. ~0.02),
 packed-word UACI swings to 22-43% (vs. ~33.33% ideal). From **K=12 on**,

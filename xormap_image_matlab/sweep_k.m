@@ -4,7 +4,7 @@
 % K actually improves the statistical test results (it mainly changes
 % pixels-per-iteration = K/8 and per-iteration cost, not the seed quality,
 % since the seed already comes from a full SHA-256-derived hash regardless
-% of K). Writes results/sweep_k.csv and results/sweep_k.png.
+% of K). Writes results/sweep_k.csv and results/sweep_k.pdf.
 %
 % Run download_images.m first if images/*.tiff aren't there yet.
 
@@ -114,6 +114,7 @@ for m = 1:size(metrics, 1)
 end
 
 sgtitle('xormap image cipher: metric vs keystream width K (8:4:512)');
-saveas(fh, fullfile(results_dir, 'sweep_k.png'));
+exportgraphics(fh, fullfile(results_dir, 'sweep_k.pdf'), ...
+    'ContentType', 'vector', 'BackgroundColor', 'white');
 close(fh);
-fprintf('Wrote %s\n', fullfile(results_dir, 'sweep_k.png'));
+fprintf('Wrote %s\n', fullfile(results_dir, 'sweep_k.pdf'));

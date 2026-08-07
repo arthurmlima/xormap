@@ -5,21 +5,21 @@ function words = bits_to_words(bits, word_width)
 %   there): bit 1 of each word is its LSB. numel(BITS) must be a multiple
 %   of WORD_WIDTH. Returned as uint32 (safely holds up to 32-bit words);
 %   cast down (e.g. to uint16 for RGB565) as needed.
+%
+%   Vectorised the same way as BITS_TO_BYTES: each word is a weighted sum
+%   of its bits, so the whole stream is one 1xW * WxN matrix product. The
+%   previous per-bit loop with a bitset call ran WORD_WIDTH interpreted
+%   operations per word (24 per pixel for RGB888), which dominated the
+%   database-wide sweeps. Weights up to 2^31 and their sums are exactly
+%   representable in double, so the uint32 cast is lossless.
 
     if mod(numel(bits), word_width) ~= 0
         error('bits_to_words:badLength', 'numel(bits) must be a multiple of word_width');
     end
-
-    n = numel(bits) / word_width;
-    words = zeros(1, n, 'uint32');
-    for idx = 1:n
-        base = (idx - 1) * word_width;
-        v = uint32(0);
-        for b = 0:(word_width - 1)
-            if bits(base + b + 1)
-                v = bitset(v, b + 1);
-            end
-        end
-        words(idx) = v;
+    if word_width > 32
+        error('bits_to_words:tooWide', 'word_width must be at most 32');
     end
+
+    grouped = reshape(logical(bits(:)), word_width, []);   % column j = word j, LSB first
+    words = uint32((2 .^ (0:(word_width - 1))) * grouped); % 1xW * WxN -> 1xN
 end

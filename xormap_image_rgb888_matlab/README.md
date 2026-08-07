@@ -5,8 +5,8 @@ The RGB888 (24 bits/pixel) counterpart to
 `K/word_width`-pixels-per-iteration cipher strategy, but run across
 **every color image the USC-SIPI database currently distributes**, not
 just a 3-image sample. See also
-[xormap_image_rgb888_xorfold_matlab](../xormap_image_rgb888_xorfold_matlab),
-the one-state-per-pixel XOR-fold variant of this same experiment.
+[xormap_image_matlab](../xormap_image_matlab), the grayscale counterpart
+run across every SIPI grayscale image on the same K grid.
 
 ## USC-SIPI has 24-bit images natively — no truncation needed
 
@@ -55,8 +55,8 @@ canonical `xormap_transform` (`../xormap_matlab`), which is O(K²) per
 call. That's fine for 3 images. Run across all 51 SIPI color images at
 K=24:24:384, it would take on the order of **3+ hours**. This pipeline
 instead uses `xormap_transform_fast` (from
-[xormap_image_rgb565_xorfold_matlab](../xormap_image_rgb565_xorfold_matlab),
-reused rather than duplicated), an O(K) prefix-XOR reformulation that is
+[xormap_matlab](../xormap_matlab), alongside the canonical transform it
+reformulates), an O(K) prefix-XOR reformulation that is
 sequence-equivalent to `xormap_transform` by construction — proven
 per-K in `test_xormap_rgb888.m` by checking every single-bit basis state,
 and independently by diffing its output byte-for-byte against the
@@ -95,7 +95,7 @@ channels, which needed per-channel ideals):
 ## Results
 
 See `results/sweep_k_rgb888.csv` (816 rows: one per image×K) and
-`results/sweep_k_rgb888.png` — light gray points are individual
+`results/sweep_k_rgb888.pdf` — light gray points are individual
 (image, K) measurements, the bold line is the mean across all 51 images
 at each K.
 

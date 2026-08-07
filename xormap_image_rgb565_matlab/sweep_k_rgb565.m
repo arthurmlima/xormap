@@ -2,7 +2,7 @@
 % RGB565 analogue of xormap_image_matlab/sweep_k.m: sweeps the xormap
 % keystream width K = 8:4:512 across the three color test images and
 % re-runs the cipher metrics at each K. Writes results/sweep_k_rgb565.csv
-% and results/sweep_k_rgb565.png.
+% and results/sweep_k_rgb565.pdf.
 %
 % Run download_images.m first if images/*.tiff aren't there yet.
 
@@ -117,6 +117,7 @@ for m = 1:size(metrics, 1)
 end
 
 sgtitle('xormap RGB565 image cipher: metric vs keystream width K (8:4:512)');
-saveas(fh, fullfile(results_dir, 'sweep_k_rgb565.png'));
+exportgraphics(fh, fullfile(results_dir, 'sweep_k_rgb565.pdf'), ...
+    'ContentType', 'vector', 'BackgroundColor', 'white');
 close(fh);
-fprintf('Wrote %s\n', fullfile(results_dir, 'sweep_k_rgb565.png'));
+fprintf('Wrote %s\n', fullfile(results_dir, 'sweep_k_rgb565.pdf'));

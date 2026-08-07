@@ -8,8 +8,8 @@ function [cipher, seed, iterations] = xormap_image_encrypt_fast(plain, key_bits)
 %
 %   ITERATIONS is the number of xormap register advances the encryption
 %   consumed, ceil(numel(PLAIN) * 8 / K). Reported so the sweep can record
-%   the cost side of the K trade-off: unlike the xorfold experiments, here
-%   a wider K means proportionally FEWER iterations.
+%   the cost side of the K trade-off: a wider K means proportionally
+%   FEWER iterations, since each one yields K/8 pixels.
 
     k = numel(key_bits);
     if k <= 4
