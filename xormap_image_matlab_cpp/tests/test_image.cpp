@@ -94,7 +94,7 @@ std::string bytes_to_hex(const std::vector<std::uint8_t>& bytes)
     return result;
 }
 
-std::optional<std::filesystem::path> find_matlab_image_directory()
+std::optional<std::filesystem::path> find_corpus_image_directory()
 {
     std::vector<std::filesystem::path> starting_points;
     std::error_code error;
@@ -111,7 +111,7 @@ std::optional<std::filesystem::path> find_matlab_image_directory()
 
     for (auto cursor : starting_points) {
         while (!cursor.empty()) {
-            const auto candidate = cursor / "xormap_image_matlab" / "images";
+            const auto candidate = cursor / "xormap_image_matlab_cpp" / "images";
             error.clear();
             if (std::filesystem::is_directory(candidate, error) && !error) {
                 return candidate.lexically_normal();
@@ -300,9 +300,9 @@ TEST_CASE("CSV fields use RFC 4180 escaping", "[image][csv]")
 TEST_CASE("real MATLAB grayscale fixtures match end-to-end golden results",
           "[image][matlab][integration]")
 {
-    const auto image_directory = find_matlab_image_directory();
+    const auto image_directory = find_corpus_image_directory();
     if (!image_directory.has_value()) {
-        SKIP("sibling xormap_image_matlab/images corpus is not available");
+        SKIP("xormap_image_matlab_cpp/images corpus is not available");
     }
 
     struct GoldenImage {
@@ -384,9 +384,9 @@ TEST_CASE("real MATLAB grayscale fixtures match end-to-end golden results",
 TEST_CASE("serial MATLAB K=24 real-image vector matches exactly",
           "[image][matlab][integration]")
 {
-    const auto image_directory = find_matlab_image_directory();
+    const auto image_directory = find_corpus_image_directory();
     if (!image_directory.has_value()) {
-        SKIP("sibling xormap_image_matlab/images corpus is not available");
+        SKIP("xormap_image_matlab_cpp/images corpus is not available");
     }
     const auto path = *image_directory / "5.1.09.tiff";
     if (!std::filesystem::is_regular_file(path)) {
@@ -419,9 +419,9 @@ TEST_CASE("serial MATLAB K=24 real-image vector matches exactly",
 TEST_CASE("parallel MATLAB worker K=24 real-image vector matches exactly",
           "[image][matlab][threefry][parallel][integration]")
 {
-    const auto image_directory = find_matlab_image_directory();
+    const auto image_directory = find_corpus_image_directory();
     if (!image_directory.has_value()) {
-        SKIP("sibling xormap_image_matlab/images corpus is not available");
+        SKIP("xormap_image_matlab_cpp/images corpus is not available");
     }
     const auto path = *image_directory / "5.1.09.tiff";
     if (!std::filesystem::is_regular_file(path)) {

@@ -40,7 +40,7 @@ TEST_CASE("all 51 converted RGB565 files match their RGB888 sources")
 {
     const auto root = project_root();
     const auto manifest = root / "images_rgb565" / "manifest.csv";
-    const auto source_root = root.parent_path() / "xormap_image_rgb888_matlab";
+    const auto source_root = root.parent_path() / "xormap_image_rgb888_matlab_cpp";
     if (!std::filesystem::exists(manifest)) {
         SKIP("generated full RGB565 corpus is not installed");
     }

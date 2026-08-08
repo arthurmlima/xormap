@@ -11,10 +11,9 @@
 
 namespace {
 
-std::filesystem::path matlab_images()
+std::filesystem::path corpus_images()
 {
-    return std::filesystem::path(__FILE__).parent_path().parent_path()
-        .parent_path() / "xormap_image_rgb888_matlab" / "images";
+    return std::filesystem::path(__FILE__).parent_path().parent_path() / "images";
 }
 
 xormap_color::Words xor_words(const xormap_color::Words& first,
@@ -38,7 +37,7 @@ TEST_CASE("translated RGB888 verification suite passes")
 
 TEST_CASE("real MATLAB RGB888 K24 sweep vector matches exactly")
 {
-    const auto path = matlab_images() / "4.1.01.tiff";
+    const auto path = corpus_images() / "4.1.01.tiff";
     if (!std::filesystem::exists(path)) {
         SKIP("local USC-SIPI RGB888 corpus is not installed");
     }
@@ -71,7 +70,7 @@ TEST_CASE("real MATLAB RGB888 K24 sweep vector matches exactly")
 
 TEST_CASE("real MATLAB RGB888 K24 analysis vector matches exactly")
 {
-    const auto path = matlab_images() / "4.1.01.tiff";
+    const auto path = corpus_images() / "4.1.01.tiff";
     if (!std::filesystem::exists(path)) {
         SKIP("local USC-SIPI RGB888 corpus is not installed");
     }

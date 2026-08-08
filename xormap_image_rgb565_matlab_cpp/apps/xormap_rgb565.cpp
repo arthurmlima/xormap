@@ -88,9 +88,9 @@ int main(int argc, char** argv)
         }
 
         const auto root = project_root(argv[0]);
-        const auto rgb888_matlab = root.parent_path() / "xormap_image_rgb888_matlab";
+        const auto rgb888_cpp = root.parent_path() / "xormap_image_rgb888_matlab_cpp";
         xormap_rgb565::Options options;
-        options.paths.source_images = rgb888_matlab / "images";
+        options.paths.source_images = rgb888_cpp / "images";
         options.paths.source_manifest = options.paths.source_images / "manifest.csv";
         options.paths.converted_images = root / "images_rgb565";
         options.paths.converted_manifest = options.paths.converted_images / "manifest.csv";

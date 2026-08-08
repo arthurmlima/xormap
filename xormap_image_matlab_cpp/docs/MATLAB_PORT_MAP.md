@@ -1,9 +1,10 @@
 # MATLAB-to-C++ port map
 
-Every `.m` source in `xormap_image_matlab` has a native C++ counterpart. The
-table below maps the original entry point to its implementation and, where
-applicable, its `xormap_gray` command. Public library declarations live under
-`include/xormap_image/`; definitions live under `src/`.
+Every source entry point from the original grayscale MATLAB implementation has
+a native C++ counterpart. The table below maps each historical entry point to
+its implementation and, where applicable, its `xormap_gray` command. Public
+library declarations live under `include/xormap_image/`; definitions live
+under `src/`.
 
 | MATLAB source | Native C++ counterpart | CLI/workflow |
 |---|---|---|
@@ -33,12 +34,11 @@ applicable, its `xormap_gray` command. Public library declarations live under
 | `xormap_keystream.m` | `core.hpp` / `core.cpp`: `keystream_canonical` | Reference path and parity tests |
 | `xormap_keystream_fast.m` | `core.hpp` / `core.cpp`: `keystream_fast` with a reusable `TransformPlan` | Production evaluation path |
 
-The MATLAB project imports `xormap_transform.m` and
-`xormap_transform_fast.m` from the sibling `xormap_matlab` project. Their
-logic is also translated locally: `transform_canonical`, `make_transform_plan`,
-and `transform_fast` in `core.cpp`. Consequently, the C++ project has no
-runtime dependency on either MATLAB source directory; the sibling image
-directory is only the default data location.
+The original project imported `xormap_transform.m` and
+`xormap_transform_fast.m` from its base transform project. Their logic is
+translated locally as `transform_canonical`, `make_transform_plan`, and
+`transform_fast` in `core.cpp`. The image corpus is also included locally, so
+the C++ project has no runtime dependency on a MATLAB source directory.
 
 ## Supporting native modules
 

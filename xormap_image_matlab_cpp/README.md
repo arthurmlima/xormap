@@ -1,7 +1,7 @@
 # xormap image cipher: native C++17 port
 
-This directory is a native C++17 conversion of every function, test, and
-evaluation workflow in [`../xormap_image_matlab`](../xormap_image_matlab).
+This directory is a self-contained native C++17 conversion of the original
+grayscale MATLAB implementation and all of its tests and evaluation workflows.
 It does not invoke MATLAB and does not require a MATLAB Runtime. The cipher,
 SHA-256 seed expansion, TIFF handling, metrics, downloads, sweeps, analyses,
 and parallel task scheduling all run in C++.
@@ -75,12 +75,11 @@ make test
 For a library/CLI-only build without Catch2, configure with
 `-DBUILD_TESTING=OFF`. The executable is `build/xormap_gray`.
 
-## Existing image corpus
+## Included image corpus
 
-By default the CLI reads
-`../xormap_image_matlab/images`. That sibling directory already contains the
-159-image USC-SIPI grayscale corpus and `manifest_gray.csv`, so the TIFF data
-is reused in place rather than copied into this project. C++ results go to this
+By default the CLI reads this project's `images/` directory. It contains the
+complete 159-image USC-SIPI grayscale corpus and `manifest_gray.csv`, so the
+C++ project has no data dependency on a MATLAB source tree. Results go to this
 project's own `results/` directory.
 
 Use `--images DIR`, `--manifest CSV`, or `--results DIR` to override those
@@ -165,7 +164,7 @@ elapsed time.
 ```sh
 ./build/xormap_gray sweep-all
 ./build/xormap_gray sweep-all --k-first 24 --k-step 24 --k-last 384 \
-  --manifest ../xormap_image_matlab/images/manifest_gray.csv --threads 0
+  --manifest images/manifest_gray.csv --threads 0
 ```
 
 The default grid is `K = 24:24:384` over all manifest images. `--threads 0`
@@ -194,7 +193,7 @@ round-trip PSNR.
 ./build/xormap_gray compare
 ./build/xormap_gray compare \
   --gray results/sweep_k_gray_all.csv \
-  --rgb ../xormap_image_rgb888_matlab/results/sweep_k_rgb888.csv \
+  --rgb ../xormap_image_rgb888_matlab_cpp/results/sweep_k_rgb888.csv \
   --output results/comparison/compare_rgb_gray_summary.csv
 ```
 

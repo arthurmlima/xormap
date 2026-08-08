@@ -122,7 +122,7 @@ ParsedOptions parse_options(int argc, char** argv, int first_argument,
 {
     ParsedOptions options;
     options.project_root = project_root;
-    options.images = project_root.parent_path() / "xormap_image_matlab" / "images";
+    options.images = project_root / "images";
     options.results = project_root / "results";
 
     for (int index = first_argument; index < argc; ++index) {
@@ -201,7 +201,7 @@ void print_help(std::ostream& output)
         "  xormap_gray read-sweep <gray|rgb888|CSV> [--results DIR]\n"
         "  xormap_gray compare [--gray CSV] [--rgb CSV] [--output CSV]\n\n"
         "Common options:\n"
-        "  --images DIR     SIPI TIFF directory (defaults to the sibling MATLAB corpus)\n"
+        "  --images DIR     SIPI TIFF directory (defaults to this project's images/)\n"
         "  --results DIR    output directory (defaults to this project's results/)\n"
         "  --manifest CSV   all-grayscale manifest (defaults to DIR/manifest_gray.csv)\n"
         "  --threads N      native C++ workers; 0 means hardware concurrency\n"
@@ -252,7 +252,7 @@ fs::path sweep_alias_path(const std::string& source, const ParsedOptions& option
         return options.results / "sweep_k_gray_all.csv";
     }
     if (alias == "rgb888") {
-        return options.project_root.parent_path() / "xormap_image_rgb888_matlab" / "results" /
+        return options.project_root.parent_path() / "xormap_image_rgb888_matlab_cpp" / "results" /
                "sweep_k_rgb888.csv";
     }
     return source;
@@ -368,7 +368,7 @@ int main(int argc, char** argv)
                              {"--results", "--gray", "--rgb", "--output"});
             fs::path gray = options.results / "sweep_k_gray_all.csv";
             fs::path rgb = options.project_root.parent_path() /
-                           "xormap_image_rgb888_matlab" / "results" /
+                           "xormap_image_rgb888_matlab_cpp" / "results" /
                            "sweep_k_rgb888.csv";
             fs::path output = options.results / "comparison" /
                               "compare_rgb_gray_summary.csv";

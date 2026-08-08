@@ -80,9 +80,8 @@ int main(int argc, char** argv)
         }
 
         const auto root = project_root(argv[0]);
-        const auto matlab_root = root.parent_path() / "xormap_image_rgb888_matlab";
         xormap_color::rgb888::Options options;
-        options.paths.images = matlab_root / "images";
+        options.paths.images = root / "images";
         options.paths.manifest = options.paths.images / "manifest.csv";
         options.paths.results = root / "results";
         std::size_t first = 24U;

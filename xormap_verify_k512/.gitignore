@@ -1,8 +1,0 @@
-*.o
-*.log
-/xormap_512.v
-/xormap_512_tb.vvp
-/test_vectors.mem
-/test_params.vh
-/test_params.hpp
-cpp_check/check_k512

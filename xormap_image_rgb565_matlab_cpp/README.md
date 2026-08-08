@@ -1,9 +1,10 @@
 # xormap RGB565 image cipher - native C++17 port
 
-This folder ports `../xormap_image_rgb565_matlab` and removes its original
-three-image limitation. It uses the same complete 51-image source manifest
-as RGB888, converts every TIFF to packed RGB565, and can calculate metrics
-for the entire converted corpus in parallel.
+This folder is the self-contained C++ port of the original RGB565 MATLAB
+implementation and removes its three-image limitation. It uses the complete
+51-image source manifest from the sibling RGB888 C++ project, converts every
+TIFF to packed RGB565, and can calculate metrics for the entire converted
+corpus in parallel.
 
 ## Full RGB888-to-RGB565 corpus
 
@@ -14,9 +15,9 @@ make convert
 ```
 
 This reads all 51 RGB888 TIFFs from
-`../xormap_image_rgb888_matlab/images`, truncates channels exactly like
-MATLAB (`R8>>3`, `G8>>2`, `B8>>3`), and writes 51 files under
-`images_rgb565/` plus `images_rgb565/manifest.csv`.
+`../xormap_image_rgb888_matlab_cpp/images`, truncates channels exactly like
+the reference implementation (`R8>>3`, `G8>>2`, `B8>>3`), and writes 51
+files under `images_rgb565/` plus `images_rgb565/manifest.csv`.
 
 Each `.rgb565` file is self-describing and deterministic:
 

@@ -1,9 +1,9 @@
 # xormap RGB888 image cipher - native C++17 port
 
-This folder is the C++ counterpart of
-`../xormap_image_rgb888_matlab`. It implements the full 24-bit packed
-RGB888 cipher, translated correctness tests, the 51-image parallel sweep,
-and the combined key-sensitivity/histogram/PSNR analysis.
+This folder is the self-contained C++ counterpart of the original RGB888
+MATLAB implementation. It implements the full 24-bit packed RGB888 cipher,
+translated correctness tests, the 51-image parallel sweep, and the combined
+key-sensitivity/histogram/PSNR analysis.
 
 Pixels are packed exactly as MATLAB does:
 
@@ -43,8 +43,9 @@ engine lives in `include/xormap_color/common.hpp` and `src/common.cpp`.
 
 ## Commands
 
-The defaults read the existing 51 RGB TIFFs and manifest from
-`../xormap_image_rgb888_matlab/images` and write this folder's `results/`.
+The defaults read the included 51 RGB TIFFs and manifest from this project's
+`images/` directory and write this folder's `results/` directory. No MATLAB
+source or external data directory is required.
 
 ```sh
 ./build/xormap_rgb888 help

@@ -5,7 +5,7 @@
 namespace matlab_vectors {
 
 // Generated from the unmodified MATLAB R2026a sources in
-// ../xormap_image_matlab. They are intentionally stored as text so bit zero
+// the original MATLAB reference implementation. They are intentionally stored as text so bit zero
 // remains visually first, exactly as MATLAB displays each logical row vector.
 inline constexpr std::string_view secret_key_512 =
     "0001110011011001111101000000001010110100001010110111110000110111"
