@@ -1,0 +1,41 @@
+#pragma once
+
+#include <string_view>
+
+namespace matlab_vectors {
+
+// Generated from the unmodified MATLAB R2026a sources in
+// ../xormap_image_matlab. They are intentionally stored as text so bit zero
+// remains visually first, exactly as MATLAB displays each logical row vector.
+inline constexpr std::string_view secret_key_512 =
+    "0001110011011001111101000000001010110100001010110111110000110111"
+    "0110111100010011101110000101101000000110010101010111010001000011"
+    "0111101100110110110110001101111101101101110011001000001110011100"
+    "1011000011001001110010011011101110001110000000011000100101001111"
+    "0001110101110010001101110111101100100001111000001110100100101000"
+    "1001001001111100010001101000100111101000100001111010000101110111"
+    "1110111111000001101100010100111011000000010010011101110100110101"
+    "1111101110011001110011100100000111000111101000100110000100100000";
+
+inline constexpr std::string_view kdf_512_hex =
+    "95CBBC01C2B6BC9602DD3D920313AC391A0BD6B7EFB4527EA545FFBE1A4D1036"
+    "980C969C38F624651534DCB10CDAA59FAF6AEA7F2ECCF7E6FABDE1517911DCA3";
+
+inline constexpr std::string_view keystream_k5_hex =
+    "32C924934C32C924934C32C924934C32C9";
+inline constexpr std::string_view keystream_k8_hex =
+    "110774C90E5AEE0774C90E5AEE0774C90E";
+inline constexpr std::string_view keystream_k24_hex =
+    "1886612CC112D2022F2D87575EB2E1EF50";
+inline constexpr std::string_view keystream_k31_hex =
+    "300C180658024803300164E02700C8DF47";
+
+inline constexpr std::string_view encrypt_k24_seed = "001110000001101010111010";
+inline constexpr std::string_view encrypt_k24_hex =
+    "8914329B19EDC87E0723349363D7979234A60E02";
+inline constexpr std::string_view encrypt_k31_seed =
+    "0011100000011010101110101001011";
+inline constexpr std::string_view encrypt_k31_hex =
+    "ABCB9BCBDD50D61622D816F2A6F2E9482E24FF35";
+
+}  // namespace matlab_vectors

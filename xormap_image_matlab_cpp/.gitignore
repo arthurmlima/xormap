@@ -1,0 +1,8 @@
+/build/
+/build-*/
+/results/*
+!/results/.gitkeep
+/tmp/
+*.o
+*.dSYM/
+.DS_Store
