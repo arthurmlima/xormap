@@ -1,6 +1,0 @@
-I want that you would make another folder for the following test: 
-get the generate image_size_pixel number of iteration 
-each value of K-bit value of PRNG should XOR fold into 16bit to encrypt one RGB565 Pixel.
-Do this for the K=32:32:512 
-
-

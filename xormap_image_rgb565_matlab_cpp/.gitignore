@@ -1,0 +1,7 @@
+/build*/
+/results/*
+!/results/.gitkeep
+/images_rgb565/*.rgb565
+/images_rgb565/manifest.csv
+/tmp/*
+!/tmp/pdfs/
