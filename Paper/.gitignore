@@ -1,0 +1,15 @@
+# Compiled outputs and TeX auxiliary files (regenerate with tectonic).
+main.pdf
+main.aux
+main.log
+main.out
+
+# Full-resolution intermediate TIFFs from the export tools (large; the
+# small PNGs in img/ actually embedded by the paper are kept). Regenerate
+# with tools/export_{gray,rgb888}_figure.
+data/*.tiff
+
+# Compiled export tool binaries (see tools/README or main.tex comments for
+# the compile command; source .cpp files are kept).
+tools/export_gray_figure
+tools/export_rgb888_figure

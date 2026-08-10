@@ -5,6 +5,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 
 % Same palette used throughout Tikz/config.tex and the native PDF reports.
@@ -36,6 +37,25 @@
   },
   paper mean/.style={ mark=*, mark size=1.1pt, thick },
   paper ideal/.style={ dashed, thick, opacity=0.75, mark=none },
+  % Half-width variant for two side-by-side panels inside a figure* spanning
+  % both columns (still sized natively via width=, never scaled after).
+  paper half plot/.style={
+    width=0.48\textwidth, height=0.40\textwidth,
+    grid=both,
+    grid style={line width=0.1pt, draw=black!10},
+    major grid style={line width=0.2pt, draw=black!25},
+    tick label style={font=\scriptsize},
+    label style={font=\scriptsize},
+    title style={font=\scriptsize},
+    legend style={font=\tiny, draw=black!30, fill=white,
+                  fill opacity=0.85, text opacity=1},
+    legend cell align={left},
+    every axis plot/.append style={line width=0.9pt},
+  },
+  paper corr plain/.style={ only marks, mark=*, mark size=0.5pt,
+                            color=xormapOrange, opacity=0.5 },
+  paper corr cipher/.style={ only marks, mark=*, mark size=0.5pt,
+                             color=xormapBlue, opacity=0.5 },
 }
 
 \begin{document}
@@ -261,6 +281,113 @@ grayscale, consistent with the plaintext remaining unrecoverable), and
 correct-key round trips are exact (PSNR $=+\infty$) at every $K$ tested in
 every one of the 4176 $(\text{image}, K)$ combinations across all three
 formats.
+
+\subsection{A Representative Image Pair at $K=384$}
+\label{sec:qualitative}
+
+The aggregate statistics above are corroborated directly by two
+representative images encrypted at $K=384$: the USC-SIPI grayscale test
+image \texttt{5.3.01} ($1024\times1024$) and the RGB888 color image
+\texttt{house} ($512\times512$), both from the corpora in
+Table~\ref{tab:setup}. Fig.~\ref{fig:images} shows each plaintext next to
+its ciphertext; Fig.~\ref{fig:correlation} shows horizontal adjacent-pixel
+correlation for both, plaintext versus cipher; Fig.~\ref{fig:histogram}
+shows the corresponding pixel-value histograms. For \texttt{5.3.01},
+horizontal correlation drops from $0.979$ (plaintext) to $-0.034$
+(cipher); for \texttt{house} (red channel), from $0.952$ to $0.013$ — in
+both cases the strong diagonal structure visible in the plaintext scatter
+collapses to an uncorrelated cloud, and the corresponding histogram
+flattens from the image's natural, highly non-uniform tonal distribution
+toward the near-flat cipher histogram already quantified by
+Table~\ref{tab:chi2} at this $K$.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.235\textwidth]{img/gray_plain.png}\hfill
+\includegraphics[width=0.235\textwidth]{img/gray_cipher.png}
+
+\vspace{2pt}
+\includegraphics[width=0.235\textwidth]{img/house_plain.png}\hfill
+\includegraphics[width=0.235\textwidth]{img/house_cipher.png}
+\caption{Plaintext (left) and ciphertext (right) at $K=384$: grayscale
+\texttt{5.3.01} (top), RGB888 \texttt{house} (bottom).}
+\label{fig:images}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[paper half plot,
+    title={Grayscale (\texttt{5.3.01})},
+    xlabel={pixel $(x,y)$}, ylabel={pixel $(x,y{+}1)$},
+    xmin=0, xmax=255, ymin=0, ymax=255,
+]
+\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
+    {data/gray_correlation_sample.csv};
+\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
+    {data/gray_correlation_sample.csv};
+\legend{plain,cipher}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[paper half plot,
+    title={RGB888 (\texttt{house}), R channel},
+    xlabel={pixel $(x,y)$}, ylabel={pixel $(x,y{+}1)$},
+    xmin=0, xmax=255, ymin=0, ymax=255,
+]
+\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
+    {data/house_correlation_sample.csv};
+\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
+    {data/house_correlation_sample.csv};
+\legend{plain,cipher}
+\end{axis}
+\end{tikzpicture}
+\caption{Horizontal adjacent-pixel correlation, plain vs.\ cipher, $K=384$
+(500 of 2000 sampled pixel pairs per series, evenly strided).}
+\label{fig:correlation}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[paper half plot,
+    title={Grayscale (\texttt{5.3.01})},
+    xlabel={pixel level}, ylabel={count},
+    xmin=0, xmax=255,
+]
+\addplot[xormapOrange, thick] table[x=level,y=plain_count,col sep=comma]
+    {data/gray_histogram.csv};
+\addplot[xormapBlue, thick] table[x=level,y=cipher_count,col sep=comma]
+    {data/gray_histogram.csv};
+\legend{plain,cipher}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[paper half plot,
+    title={RGB888 (\texttt{house}), R/G/B},
+    xlabel={pixel level}, ylabel={count},
+    xmin=0, xmax=255,
+]
+\addplot[red, thick] table[x=level,y=plain_r,col sep=comma]
+    {data/house_histogram.csv};
+\addplot[green!60!black, thick] table[x=level,y=plain_g,col sep=comma]
+    {data/house_histogram.csv};
+\addplot[blue, thick] table[x=level,y=plain_b,col sep=comma]
+    {data/house_histogram.csv};
+\addplot[red, dashed] table[x=level,y=cipher_r,col sep=comma]
+    {data/house_histogram.csv};
+\addplot[green!60!black, dashed] table[x=level,y=cipher_g,col sep=comma]
+    {data/house_histogram.csv};
+\addplot[blue, dashed] table[x=level,y=cipher_b,col sep=comma]
+    {data/house_histogram.csv};
+\legend{R plain,G plain,B plain,R cipher,G cipher,B cipher}
+\end{axis}
+\end{tikzpicture}
+\caption{Pixel-value histograms, plain (solid) vs.\ cipher (dashed),
+$K=384$. The cipher histogram is the concrete, per-image counterpart of
+the chi-square uniformity test summarized in Table~\ref{tab:chi2}.}
+\label{fig:histogram}
+\end{figure}
 
 \section{Discussion: Why $K=24$ Is the Outlier}
 \label{sec:discussion}
