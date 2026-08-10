@@ -5,8 +5,8 @@
     ylabel={Mean entropy (bits)},
     xmin=6, xmax=402,
 ]
-\addplot[xormap scatter] table[x=K, y=value, col sep=comma] {../data/rgb888_entropy_points.csv};
-\addplot[xormap mean line, color=xormapOrange] table[x=K, y=mean, col sep=comma] {../data/rgb888_entropy_means.csv};
+\addplot[xormap scatter] table[x=K, y=value, col sep=comma] {data/rgb888_entropy_points_sample.csv};
+\addplot[xormap mean line, color=xormapOrange] table[x=K, y=mean, col sep=comma] {data/rgb888_entropy_means.csv};
 \addplot[xormap ideal line] coordinates {(6,8.000000) (402,8.000000)};
 \legend{individual images,mean,ideal}
 \end{axis}

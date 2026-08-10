@@ -14,9 +14,11 @@ Tikz/
   config.tex       one shared pgfplots style — load this once
   main.tex         a compilable document that \input's every plot below
   plots/*.tex       one tikzpicture per plot (21 total)
-  data/*.csv        the data each plot reads, two files per plot:
-                     <name>_points.csv  — every individual (image, K) value
-                     <name>_means.csv   — mean over images at each K
+  data/*.csv        the data each plot reads, three files per plot:
+                     <name>_points.csv        — every individual (image, K) value (full data)
+                     <name>_points_sample.csv — evenly-sampled subset, ~200-250 points,
+                                                 used only for the rendered scatter (see below)
+                     <name>_means.csv         — mean over images at each K
 ```
 
 ## Usage
@@ -33,18 +35,39 @@ In your own document:
 \end{figure}
 ```
 
-Or compile `Tikz/main.tex` directly to get every plot in one PDF:
+Or compile `Tikz/main.tex` directly to get every plot in one PDF. This
+environment had no LaTeX toolchain installed and no sudo access, so it was
+verified with [tectonic](https://tectonic-typesetting.github.io/) (a
+self-contained TeX engine with no separate texlive-core install), pulled in
+via a local, non-root micromamba environment:
 
 ```sh
-pdflatex -output-directory Tikz Tikz/main.tex
+micromamba create -n latex -c conda-forge tectonic
+cd Tikz && micromamba run -n latex tectonic main.tex
 ```
 
-(No LaTeX toolchain was available in this environment to test-compile it —
-review the generated `.tex` before a from-scratch build if you hit issues.)
+This produces a 21-figure, 10-page PDF. It should compile the same way with
+a regular `pdflatex`/`xelatex`/`lualatex` install as long as `pgfplots` is
+available (`pdflatex -output-directory Tikz Tikz/main.tex`, run from the
+repo root, or `cd Tikz && pdflatex main.tex`).
 
-Each plot file references its data as `../data/<file>.csv` — a path relative
-to `plots/` — so keep `config.tex`, `plots/`, and `data/` together if you
-move `Tikz/` elsewhere.
+Each plot file references its data as `data/<file>.csv` — a path relative
+to wherever compilation runs from (`Tikz/`, i.e. the directory containing
+`main.tex`), **not** relative to the plot file's own location in `plots/`
+— that's just how LaTeX resolves `\input`. Compile from inside `Tikz/`, or
+from the repo root, keeping `config.tex`, `plots/`, and `data/` together.
+
+### Why the scatter series is a sampled subset, not the full data
+
+The first full-document compile hit tectonic's fixed TeX memory limit
+(`main memory size=5000000`) partway through — plotting the complete
+per-image scatter (2544 points for grayscale, repeated across many large
+figures in one document) accumulates too much memory across a 21-figure
+run. The `_points.csv` files still hold every value; only the rendered
+scatter marks use `_points_sample.csv`, an evenly-strided subset capped at
+~200-250 points per plot, enough to show the spread without exhausting
+memory. The mean line and ideal reference line — the two things doing most
+of the actual work in each plot — always use the full data.
 
 ## What's included
 

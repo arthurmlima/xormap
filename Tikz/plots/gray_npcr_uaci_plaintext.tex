@@ -5,8 +5,8 @@
     ylabel={Percent (\%)},
     xmin=6, xmax=402,
 ]
-\addplot[xormap mean line, color=xormapOrange] table[x=K, y=npcr_mean, col sep=comma] {../data/gray_npcr_uaci_plaintext_means.csv};
-\addplot[xormap mean line, color=xormapBlue] table[x=K, y=uaci_mean, col sep=comma] {../data/gray_npcr_uaci_plaintext_means.csv};
+\addplot[xormap mean line, color=xormapOrange] table[x=K, y=npcr_mean, col sep=comma] {data/gray_npcr_uaci_plaintext_means.csv};
+\addplot[xormap mean line, color=xormapBlue] table[x=K, y=uaci_mean, col sep=comma] {data/gray_npcr_uaci_plaintext_means.csv};
 \addplot[xormap ideal line, color=xormapOrange] coordinates {(6,99.609375) (402,99.609375)};
 \addplot[xormap ideal line, color=xormapBlue] coordinates {(6,33.463542) (402,33.463542)};
 \legend{NPCR mean,UACI mean,NPCR ideal,UACI ideal}
