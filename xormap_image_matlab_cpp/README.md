@@ -159,29 +159,43 @@ The default grid is `K = 8:4:512`, matching MATLAB. Each `(image, K)` task
 performs both plaintext variants and records the statistical metrics and
 elapsed time.
 
-### All-image K sweep (`sweep_k_gray_all.m`)
+### All-image K sweep plus key-sensitivity, histogram, and PSNR analysis (`sweep_k_gray_all.m` + `analysis_gray.m`)
 
 ```sh
-./build/xormap_gray sweep-all
-./build/xormap_gray sweep-all --k-first 24 --k-step 24 --k-last 384 \
+./build/xormap_gray run-tests
+./build/xormap_gray run-tests --k-first 24 --k-step 24 --k-last 384 \
   --manifest images/manifest_gray.csv --threads 0
 ```
 
-The default grid is `K = 24:24:384` over all manifest images. `--threads 0`
-means hardware concurrency; a positive number sets an explicit worker count.
-
-### Key-sensitivity, histogram, and PSNR analysis (`analysis_gray.m`)
-
-```sh
-./build/xormap_gray analysis
-./build/xormap_gray analysis --k-first 24 --k-step 24 --k-last 384 \
-  --threads 0
-```
-
-This runs the shared analysis pass once for each `(image, K)` pair and the
-key-bit-position study. It covers one-bit key sensitivity, wrong-key
-decryption, chi-square histogram uniformity, plain/cipher PSNR, and exact
-round-trip PSNR.
+One execution runs the all-image K sweep and the shared analysis pass (each
+`(image, K)` pair plus the key-bit-position study) back to back. The default
+grid is `K = 24:24:384` over all manifest images. `--threads 0` means
+hardware concurrency; a positive number sets an explicit worker count.
+Analysis covers one-bit key sensitivity, wrong-key decryption, chi-square
+histogram uniformity, plain/cipher PSNR, and exact round-trip PSNR.
+`run-tests` writes exactly one CSV and one PDF: `sweep_k_gray_all.csv` has
+one row per (image, K) with every sweep and analysis metric as columns,
+followed by a second table (after a blank line) with the per-bit
+key-sensitivity study (one representative image, K x bit position); every
+panel from both passes is combined into one `sweep_k_gray_all.pdf` (11
+panels). Encryption/decryption timing is not collected (it isn't a
+security metric and varies by machine load); `read-sweep`/`compare` still
+work against older CSVs that have it (or newer ones that don't — the
+column is optional there). NPCR and UACI for a given perturbation share
+one panel/column pair instead of two; columns and panels are labelled
+"plaintext bit flip" (sweep) versus "key bit flip" (key sensitivity) —
+they measure different perturbations and the numbers are not expected to
+match. Only the cipher's pixel histogram is plotted, not the plaintext's
+(a real photo is unsurprisingly non-uniform; the "Plain vs cipher
+chi-square" panel already reports how non-uniform it is). `sweep_all_images`/
+`analyze_all_images` remain independently usable (and independently
+tested) and still write their own separate CSV/PDF files when called
+directly rather than through `run-tests`; those CSVs keep their own
+encryption-time column (asserted by tests), but the panels themselves —
+merged NPCR/UACI, no timing panel, no plaintext histogram — are the same
+either way, since both paths share the same panel-building code. This is
+not the same as the separate `compare` command, which produces its own
+cross-format gray-vs-RGB888 PDFs.
 
 ### Read and compare sweep CSVs
 
@@ -229,8 +243,7 @@ Unless `--results DIR` is supplied, artifacts are written under `results/`.
 |---|---|
 | `run-all` | `results.md`; for each image, plain/cipher/recovered TIFFs, histogram/correlation CSVs, and `<tag>_{images,histogram,correlation}.pdf` |
 | `sweep` | `sweep_k.csv` and `sweep_k.pdf` |
-| `sweep-all` | `sweep_k_gray_all.csv` and `sweep_k_gray_all.pdf` |
-| `analysis` | Four analysis CSVs plus `key_sensitivity_gray.pdf`, `histogram_analysis_gray.pdf`, and `psnr_analysis_gray.pdf` |
+| `run-tests` | one combined `sweep_k_gray_all.csv` (image/K table + per-bit study table) and one combined `sweep_k_gray_all.pdf` |
 | `compare` | Summary CSV plus `compare_rgb_gray_{entropy,correlation,npcr_uaci}.pdf` in its directory |
 | `download --all` | `manifest_gray.csv` beside the downloaded TIFFs |
 

@@ -24,7 +24,6 @@ struct Options {
                                                 std::size_t step,
                                                 std::size_t last);
 void verify(std::ostream& progress);
-void sweep(const Options& options, std::ostream& progress);
-void analysis(const Options& options, std::ostream& progress);
+void run_tests(const Options& options, std::ostream& progress);
 
 }  // namespace xormap_color::rgb888

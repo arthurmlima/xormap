@@ -42,7 +42,6 @@ struct SweepRow {
     double correlation = 0.0;
     double npcr = 0.0;
     double uaci = 0.0;
-    double seconds = 0.0;
 };
 
 struct AnalysisRow {
@@ -96,6 +95,35 @@ struct BitRow {
     return images;
 }
 
+[[nodiscard]] xormap_image::Series mean_series(
+    const std::string& label, const std::vector<std::size_t>& row_k,
+    const std::vector<double>& values, const std::vector<std::size_t>& ks,
+    xormap_image::Color color)
+{
+    xormap_image::Series series;
+    series.label = label;
+    series.style = xormap_image::SeriesStyle::Line;
+    series.line_width = 2.0;
+    series.marker_radius = 2.7;
+    series.color = color;
+    for (const std::size_t k : ks) {
+        long double sum = 0.0L;
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            if (row_k[i] == k && std::isfinite(values[i])) {
+                sum += values[i];
+                ++count;
+            }
+        }
+        if (count != 0U) {
+            series.points.push_back({static_cast<double>(k),
+                                     static_cast<double>(
+                                         sum / static_cast<long double>(count))});
+        }
+    }
+    return series;
+}
+
 [[nodiscard]] xormap_image::Panel metric_panel(
     const std::string& title, const std::string& y_label,
     const std::vector<std::size_t>& row_k, const std::vector<double>& values,
@@ -119,32 +147,44 @@ struct BitRow {
         }
     }
     panel.series.push_back(std::move(points));
-
-    xormap_image::Series means;
-    means.label = "mean";
-    means.style = xormap_image::SeriesStyle::Line;
-    means.line_width = 2.0;
-    means.marker_radius = 2.7;
-    means.color = mean_color;
-    for (const std::size_t k : ks) {
-        long double sum = 0.0L;
-        std::size_t count = 0;
-        for (std::size_t i = 0; i < values.size(); ++i) {
-            if (row_k[i] == k && std::isfinite(values[i])) {
-                sum += values[i];
-                ++count;
-            }
-        }
-        if (count != 0U) {
-            means.points.push_back({static_cast<double>(k),
-                                    static_cast<double>(
-                                        sum / static_cast<long double>(count))});
-        }
-    }
-    panel.series.push_back(std::move(means));
+    panel.series.push_back(mean_series("mean", row_k, values, ks, mean_color));
     if (std::isfinite(ideal)) {
         panel.reference_lines.push_back({ideal, "ideal",
             {0.35, 0.35, 0.35, 0.8},
+            xormap_image::ReferenceOrientation::Horizontal, 1.0});
+    }
+    panel.x_range = xormap_image::AxisRange{
+        static_cast<double>(ks.front()) - 18.0,
+        static_cast<double>(ks.back()) + 18.0};
+    return panel;
+}
+
+// Plots NPCR and UACI as two mean-over-images lines in one panel instead of
+// two separate panels, since both are percentages read against K.
+[[nodiscard]] xormap_image::Panel combined_npcr_uaci_panel(
+    const std::string& title, const std::vector<std::size_t>& row_k,
+    const std::vector<double>& npcr_values, double npcr_ideal,
+    const std::vector<double>& uaci_values, double uaci_ideal,
+    const std::vector<std::size_t>& ks)
+{
+    constexpr xormap_image::Color kNpcrColor{0.922, 0.408, 0.204, 1.0};
+    constexpr xormap_image::Color kUaciColor{0.165, 0.471, 0.839, 1.0};
+    xormap_image::Panel panel;
+    panel.title = title;
+    panel.x_label = "K (state bits)";
+    panel.y_label = "Percent (%)";
+    panel.series.push_back(
+        mean_series("NPCR", row_k, npcr_values, ks, kNpcrColor));
+    panel.series.push_back(
+        mean_series("UACI", row_k, uaci_values, ks, kUaciColor));
+    if (std::isfinite(npcr_ideal)) {
+        panel.reference_lines.push_back({npcr_ideal, "NPCR ideal",
+            {kNpcrColor.red, kNpcrColor.green, kNpcrColor.blue, 0.5},
+            xormap_image::ReferenceOrientation::Horizontal, 1.0});
+    }
+    if (std::isfinite(uaci_ideal)) {
+        panel.reference_lines.push_back({uaci_ideal, "UACI ideal",
+            {kUaciColor.red, kUaciColor.green, kUaciColor.blue, 0.5},
             xormap_image::ReferenceOrientation::Horizontal, 1.0});
     }
     panel.x_range = xormap_image::AxisRange{
@@ -278,20 +318,21 @@ struct BitRow {
     return rows;
 }
 
-void write_sweep_pdf(const std::filesystem::path& path,
-                     const std::vector<SweepRow>& rows,
-                     const std::vector<std::size_t>& ks,
-                     std::size_t image_count)
+// NPCR/UACI appear in both the sweep pass (plaintext-bit-flip diffusion) and
+// the key-sensitivity pass (key-bit-flip diffusion) below. They measure two
+// different perturbations, so the panel titles say which is which rather
+// than letting two identically-labelled charts show different numbers.
+[[nodiscard]] std::vector<xormap_image::Panel> build_sweep_panels(
+    const std::vector<SweepRow>& rows, const std::vector<std::size_t>& ks)
 {
     std::vector<std::size_t> row_k;
-    std::vector<double> entropy, corr, npcr, uaci, seconds;
+    std::vector<double> entropy, corr, npcr, uaci;
     for (const auto& row : rows) {
         row_k.push_back(row.k);
         entropy.push_back(row.entropy);
         corr.push_back(row.correlation);
         npcr.push_back(row.npcr);
         uaci.push_back(row.uaci);
-        seconds.push_back(row.seconds);
     }
     const auto ideal = xormap_image::npcr_uaci_ideal(24);
     std::vector<xormap_image::Panel> panels;
@@ -299,18 +340,10 @@ void write_sweep_pdf(const std::filesystem::path& path,
                                   row_k, entropy, ks, 8.0));
     panels.push_back(metric_panel("Horizontal correlation", "Mean absolute correlation",
                                   row_k, corr, ks, 0.0));
-    panels.push_back(metric_panel("NPCR", "NPCR (%)", row_k, npcr, ks,
-                                  ideal.npcr_percent));
-    panels.push_back(metric_panel("UACI", "UACI (%)", row_k, uaci, ks,
-                                  ideal.uaci_percent));
-    panels.push_back(metric_panel("Two-encryption time", "Seconds", row_k,
-                                  seconds, ks,
-                                  std::numeric_limits<double>::quiet_NaN()));
-    xormap_image::write_plot_grid_pdf(
-        path, "xormap RGB888: every SIPI colour image",
-        std::to_string(image_count) +
-            " images; native C++ parallel sweep; faint points are images",
-        panels, 2U);
+    panels.push_back(combined_npcr_uaci_panel(
+        "NPCR/UACI (plaintext bit flip)", row_k, npcr, ideal.npcr_percent,
+        uaci, ideal.uaci_percent, ks));
+    return panels;
 }
 
 }  // namespace
@@ -374,17 +407,17 @@ void verify(std::ostream& progress)
     }
 }
 
-void sweep(const Options& options, std::ostream& progress)
+void run_tests(const Options& options, std::ostream& progress)
 {
     if (options.k_values.empty() || options.correlation_samples == 0U) {
-        throw std::invalid_argument("sweep requires K values and correlation samples");
+        throw std::invalid_argument("run-tests requires K values and correlation samples");
     }
     const auto images = load_images(options);
     const std::size_t task_count = images.size() * options.k_values.size();
-    std::vector<SweepRow> rows(task_count);
     progress << images.size() << " images x " << options.k_values.size()
-             << " K values = " << task_count << " native C++ tasks\n";
+             << " K values = " << task_count << " native C++ tasks per pass\n";
 
+    std::vector<SweepRow> rows(task_count);
     xormap_image::parallel_for(task_count, options.workers, [&](std::size_t index) {
         const std::size_t k_index = index / images.size();
         const std::size_t image_index = index % images.size();
@@ -394,11 +427,8 @@ void sweep(const Options& options, std::ostream& progress)
         changed_plain[(image.rgb.height / 2U) * image.rgb.width +
                       image.rgb.width / 2U] ^= 1U;
         const xormap_image::Bits key = xormap_image::worker_secret_key(k);
-        const auto begin = std::chrono::steady_clock::now();
         const Words cipher = encrypt_words_fast(image.plain, kWordBits, key).cipher;
         const Words cipher2 = encrypt_words_fast(changed_plain, kWordBits, key).cipher;
-        const double elapsed = std::chrono::duration<double>(
-            std::chrono::steady_clock::now() - begin).count();
         const auto channels = rgb888_channels(cipher);
         const double entropy = (xormap_image::shannon_entropy(channels[0]) +
                                 xormap_image::shannon_entropy(channels[1]) +
@@ -414,43 +444,12 @@ void sweep(const Options& options, std::ostream& progress)
         const auto differential = npcr_uaci_words(cipher, cipher2, kWordMaximum);
         rows[index] = {image_index, k, image.rgb.height, image.rgb.width,
                        image.plain.size(), entropy, corr,
-                       differential.npcr_percent, differential.uaci_percent,
-                       elapsed};
+                       differential.npcr_percent, differential.uaci_percent};
     });
 
     std::filesystem::create_directories(options.paths.results);
-    const auto csv_path = options.paths.results / "sweep_k_rgb888.csv";
-    std::ofstream csv(csv_path);
-    if (!csv) {
-        throw std::runtime_error("could not create " + csv_path.string());
-    }
-    csv << "image,K,height,width,num_pixels,mean_entropy_cipher,"
-           "mean_abs_corrH_cipher,npcr_packed,uaci_packed,seconds\n";
-    csv << std::fixed;
-    for (const auto& row : rows) {
-        csv << xormap_image::csv_escape(images[row.image].entry.name) << ','
-            << row.k << ',' << row.height << ',' << row.width << ','
-            << row.pixels << ',' << std::setprecision(6) << row.entropy << ','
-            << row.correlation << ',' << row.npcr << ',' << row.uaci << ','
-            << std::setprecision(4) << row.seconds << '\n';
-    }
-    csv.close();
-    write_sweep_pdf(options.paths.results / "sweep_k_rgb888.pdf", rows,
-                    options.k_values, images.size());
-    progress << "wrote " << csv_path << " and sweep_k_rgb888.pdf\n";
-}
 
-void analysis(const Options& options, std::ostream& progress)
-{
-    if (options.k_values.empty()) {
-        throw std::invalid_argument("analysis requires at least one K value");
-    }
-    const auto images = load_images(options);
-    const std::size_t task_count = images.size() * options.k_values.size();
-    std::vector<AnalysisRow> rows(task_count);
-    progress << images.size() << " images x " << options.k_values.size()
-             << " K values = " << task_count << " native C++ tasks\n";
-
+    std::vector<AnalysisRow> analysis_rows(task_count);
     xormap_image::parallel_for(task_count, options.workers, [&](std::size_t index) {
         const std::size_t k_index = index / images.size();
         const std::size_t image_index = index % images.size();
@@ -498,7 +497,7 @@ void analysis(const Options& options, std::ostream& progress)
             chi_cipher += cipher_chi.statistic / 3.0;
             critical = plain_chi.critical_value;
         }
-        rows[index] = {
+        analysis_rows[index] = {
             image_index, k, image.plain.size(), packed_metrics.npcr_percent,
             packed_metrics.uaci_percent,
             xormap_image::psnr_db(cipher_rgb.pixels, cipher2_rgb.pixels).psnr_db,
@@ -512,7 +511,7 @@ void analysis(const Options& options, std::ostream& progress)
     for (const std::size_t k : options.k_values) {
         std::uint32_t expected = 0U;
         bool initialized = false;
-        for (const auto& row : rows) {
+        for (const auto& row : analysis_rows) {
             if (row.k != k) {
                 continue;
             }
@@ -528,70 +527,59 @@ void analysis(const Options& options, std::ostream& progress)
     }
 
     const std::vector<BitRow> bits = run_bit_study(images.front(), options.k_values);
-    std::filesystem::create_directories(options.paths.results);
 
-    const auto key_csv_path = options.paths.results / "key_sensitivity_rgb888.csv";
-    std::ofstream key_csv(key_csv_path);
-    key_csv << "image,volume,K,num_pixels,flipped_key_bit,npcr_key_packed,"
-               "uaci_key_packed,psnr_cipher_pair_db,psnr_plain_wrongkey_db,"
-               "first_differing_word,key_diff_checksum\n" << std::fixed;
-    for (const auto& row : rows) {
-        const auto& entry = images[row.image].entry;
-        key_csv << xormap_image::csv_escape(entry.name) << ','
-                << xormap_image::csv_escape(entry.volume) << ',' << row.k << ','
-                << row.pixels << ',' << kFlipBit << ',' << std::setprecision(6)
-                << row.npcr_key << ',' << row.uaci_key << ','
-                << std::setprecision(4) << row.psnr_pair << ',' << row.psnr_wrong
-                << ',' << row.first_word << ',' << row.checksum << '\n';
+    // ---- one combined CSV: main (image,K) table, then the per-bit study ----
+    // rows[i] and analysis_rows[i] refer to the same (image,K) task, since
+    // both passes share images/options.k_values and the same index formula.
+    const auto csv_path = options.paths.results / "sweep_k_rgb888.csv";
+    std::ofstream csv(csv_path);
+    if (!csv) {
+        throw std::runtime_error("could not create " + csv_path.string());
     }
-    key_csv.close();
-
-    const auto bits_csv_path = options.paths.results /
-        "key_sensitivity_bits_rgb888.csv";
-    std::ofstream bits_csv(bits_csv_path);
-    bits_csv << "K,flipped_key_bit,npcr_key_packed,uaci_key_packed,"
-                "psnr_cipher_pair_db\n" << std::fixed;
+    csv << "image,volume,K,height,width,num_pixels,mean_entropy_cipher,"
+           "mean_abs_corrH_cipher,npcr_plaintext_flip_packed,"
+           "uaci_plaintext_flip_packed,flipped_key_bit,"
+           "npcr_key_flip_packed,uaci_key_flip_packed,psnr_cipher_pair_db,"
+           "psnr_plain_wrongkey_db,first_differing_word,key_diff_checksum,"
+           "mean_chi2_plain,mean_chi2_cipher,chi2_critical_005,"
+           "cipher_uniform_pass,psnr_plain_cipher_db,psnr_roundtrip_db\n";
+    csv << std::fixed;
+    for (std::size_t i = 0; i < task_count; ++i) {
+        const SweepRow& sweep_row = rows[i];
+        const AnalysisRow& analysis_row = analysis_rows[i];
+        const auto& entry = images[sweep_row.image].entry;
+        csv << xormap_image::csv_escape(entry.name) << ','
+            << xormap_image::csv_escape(entry.volume) << ',' << sweep_row.k
+            << ',' << sweep_row.height << ',' << sweep_row.width << ','
+            << sweep_row.pixels << ',' << std::setprecision(6)
+            << sweep_row.entropy << ',' << sweep_row.correlation << ','
+            << sweep_row.npcr << ',' << sweep_row.uaci << ',' << kFlipBit
+            << ',' << std::setprecision(6) << analysis_row.npcr_key << ','
+            << analysis_row.uaci_key << ',' << std::setprecision(4)
+            << analysis_row.psnr_pair << ',' << analysis_row.psnr_wrong << ','
+            << analysis_row.first_word << ',' << analysis_row.checksum << ','
+            << std::setprecision(4) << analysis_row.chi_plain << ','
+            << analysis_row.chi_cipher << ',' << analysis_row.chi_critical
+            << ',' << (analysis_row.chi_cipher <= analysis_row.chi_critical ? 1 : 0)
+            << ',' << analysis_row.psnr_cipher << ','
+            << (std::isinf(analysis_row.psnr_roundtrip)
+                    ? "Inf"
+                    : std::to_string(analysis_row.psnr_roundtrip))
+            << '\n';
+    }
+    csv << '\n';
+    csv << "K,flipped_key_bit,npcr_key_bitstudy_packed,"
+           "uaci_key_bitstudy_packed,psnr_cipher_pair_bitstudy_db\n";
     for (const auto& row : bits) {
-        bits_csv << row.k << ',' << row.bit << ',' << std::setprecision(6)
-                 << row.npcr << ',' << row.uaci << ',' << std::setprecision(4)
-                 << row.psnr << '\n';
+        csv << row.k << ',' << row.bit << ',' << std::setprecision(6)
+            << row.npcr << ',' << row.uaci << ',' << std::setprecision(4)
+            << row.psnr << '\n';
     }
-    bits_csv.close();
-
-    const auto histogram_csv_path = options.paths.results /
-        "histogram_analysis_rgb888.csv";
-    std::ofstream histogram_csv(histogram_csv_path);
-    histogram_csv << "image,volume,K,num_pixels,mean_chi2_plain,mean_chi2_cipher,"
-                     "chi2_critical_005,cipher_uniform_pass\n" << std::fixed;
-    for (const auto& row : rows) {
-        const auto& entry = images[row.image].entry;
-        histogram_csv << xormap_image::csv_escape(entry.name) << ','
-                      << xormap_image::csv_escape(entry.volume) << ',' << row.k
-                      << ',' << row.pixels << ',' << std::setprecision(4)
-                      << row.chi_plain << ',' << row.chi_cipher << ','
-                      << row.chi_critical << ','
-                      << (row.chi_cipher <= row.chi_critical ? 1 : 0) << '\n';
-    }
-    histogram_csv.close();
-
-    const auto psnr_csv_path = options.paths.results / "psnr_analysis_rgb888.csv";
-    std::ofstream psnr_csv(psnr_csv_path);
-    psnr_csv << "image,volume,K,num_pixels,psnr_plain_cipher_db,"
-                "psnr_plain_wrongkey_db,psnr_roundtrip_db\n" << std::fixed;
-    for (const auto& row : rows) {
-        const auto& entry = images[row.image].entry;
-        psnr_csv << xormap_image::csv_escape(entry.name) << ','
-                 << xormap_image::csv_escape(entry.volume) << ',' << row.k << ','
-                 << row.pixels << ',' << std::setprecision(4) << row.psnr_cipher
-                 << ',' << row.psnr_wrong << ','
-                 << (std::isinf(row.psnr_roundtrip) ? "Inf"
-                     : std::to_string(row.psnr_roundtrip)) << '\n';
-    }
-    psnr_csv.close();
+    csv.close();
 
     std::vector<std::size_t> row_k;
     std::vector<double> npcr, uaci, wrong_psnr, cipher_psnr, pair_bit_npcr;
-    for (const auto& row : rows) {
+    for (const auto& row : analysis_rows) {
         row_k.push_back(row.k);
         npcr.push_back(row.npcr_key);
         uaci.push_back(row.uaci_key);
@@ -604,76 +592,66 @@ void analysis(const Options& options, std::ostream& progress)
         pair_bit_npcr.push_back(row.npcr);
     }
     const auto ideal = xormap_image::npcr_uaci_ideal(24);
-    std::vector<xormap_image::Panel> key_panels;
-    key_panels.push_back(metric_panel("One-bit key NPCR", "NPCR (%)", row_k,
-                                      npcr, options.k_values, ideal.npcr_percent,
-                                      {0.165, 0.471, 0.839, 1.0}));
-    key_panels.push_back(metric_panel("One-bit key UACI", "UACI (%)", row_k,
-                                      uaci, options.k_values, ideal.uaci_percent,
-                                      {0.165, 0.471, 0.839, 1.0}));
-    key_panels.push_back(metric_panel("Wrong-key decryption", "PSNR (dB)",
-                                      row_k, wrong_psnr, options.k_values,
-                                      std::numeric_limits<double>::quiet_NaN(),
-                                      {0.165, 0.471, 0.839, 1.0}));
-    key_panels.push_back(metric_panel("By flipped key-bit position", "NPCR (%)",
-                                      bit_k, pair_bit_npcr, options.k_values,
-                                      ideal.npcr_percent,
-                                      {0.165, 0.471, 0.839, 1.0}));
-    xormap_image::write_plot_grid_pdf(
-        options.paths.results / "key_sensitivity_rgb888.pdf",
-        "Key sensitivity: RGB888, every SIPI colour image",
-        "one flipped key bit; packed 24-bit NPCR/UACI; image-independent XOR checks",
-        key_panels, 2U);
+
+    // ---- assemble every panel from both passes into one combined report ----
+    std::vector<xormap_image::Panel> panels = build_sweep_panels(rows, options.k_values);
+
+    panels.push_back(combined_npcr_uaci_panel(
+        "NPCR/UACI (key bit flip)", row_k, npcr, ideal.npcr_percent, uaci,
+        ideal.uaci_percent, options.k_values));
+    panels.push_back(metric_panel("Wrong-key decryption", "PSNR (dB)",
+                                  row_k, wrong_psnr, options.k_values,
+                                  std::numeric_limits<double>::quiet_NaN(),
+                                  {0.165, 0.471, 0.839, 1.0}));
+    panels.push_back(metric_panel("By flipped key-bit position", "NPCR (%)",
+                                  bit_k, pair_bit_npcr, options.k_values,
+                                  ideal.npcr_percent,
+                                  {0.165, 0.471, 0.839, 1.0}));
 
     std::vector<double> chi_cipher;
-    for (const auto& row : rows) {
+    for (const auto& row : analysis_rows) {
         chi_cipher.push_back(row.chi_cipher);
     }
     const xormap_image::Bits example_key =
         xormap_image::secret_key(options.k_values.back());
     const Words example_cipher = encrypt_words_fast(
         images.front().plain, kWordBits, example_key).cipher;
-    std::vector<xormap_image::Panel> histogram_panels;
-    histogram_panels.push_back(metric_panel(
+    panels.push_back(metric_panel(
         "Cipher chi-square", "Mean chi-square (255 dof)", row_k, chi_cipher,
-        options.k_values, rows.front().chi_critical,
+        options.k_values, analysis_rows.front().chi_critical,
         {0.165, 0.471, 0.839, 1.0}));
-    histogram_panels.push_back(histogram_distribution_panel(rows));
-    histogram_panels.push_back(rgb_histogram_panel(
-        "Plain histogram, R/G/B (" + images.front().entry.name + ")",
-        rgb888_channels(images.front().plain)));
-    histogram_panels.push_back(rgb_histogram_panel(
+    panels.push_back(histogram_distribution_panel(analysis_rows));
+    panels.push_back(rgb_histogram_panel(
         "Cipher histogram, R/G/B (K=" +
             std::to_string(options.k_values.back()) + ")",
         rgb888_channels(example_cipher)));
     const std::size_t pass_count = static_cast<std::size_t>(std::count_if(
-        rows.begin(), rows.end(), [](const AnalysisRow& row) {
+        analysis_rows.begin(), analysis_rows.end(), [](const AnalysisRow& row) {
             return row.chi_cipher <= row.chi_critical;
         }));
-    xormap_image::write_plot_grid_pdf(
-        options.paths.results / "histogram_analysis_rgb888.pdf",
-        "Histogram analysis: RGB888, every SIPI colour image",
-        "chi-square uniformity per 8-bit channel; " +
-            std::to_string(pass_count) + "/" + std::to_string(rows.size()) +
-            " cipher cases pass at alpha=0.05",
-        histogram_panels, 2U);
 
-    std::vector<xormap_image::Panel> psnr_panels;
-    psnr_panels.push_back(metric_panel("Plain vs cipher", "PSNR (dB)", row_k,
-                                       cipher_psnr, options.k_values,
-                                       std::numeric_limits<double>::quiet_NaN(),
-                                       {0.165, 0.471, 0.839, 1.0}));
-    psnr_panels.push_back(metric_panel("Plain vs wrong-key decryption",
-                                       "PSNR (dB)", row_k, wrong_psnr,
-                                       options.k_values,
-                                       std::numeric_limits<double>::quiet_NaN(),
-                                       {0.165, 0.471, 0.839, 1.0}));
+    panels.push_back(metric_panel("Plain vs cipher", "PSNR (dB)", row_k,
+                                  cipher_psnr, options.k_values,
+                                  std::numeric_limits<double>::quiet_NaN(),
+                                  {0.165, 0.471, 0.839, 1.0}));
+    panels.push_back(metric_panel("Plain vs wrong-key decryption",
+                                  "PSNR (dB)", row_k, wrong_psnr,
+                                  options.k_values,
+                                  std::numeric_limits<double>::quiet_NaN(),
+                                  {0.165, 0.471, 0.839, 1.0}));
+
     xormap_image::write_plot_grid_pdf(
-        options.paths.results / "psnr_analysis_rgb888.pdf",
-        "PSNR: RGB888, every SIPI colour image",
-        "peak 255 over R/G/B; every correct-key round trip is lossless (+Inf)",
-        psnr_panels, 2U);
-    progress << "wrote four RGB888 CSV tables and three analysis PDFs\n";
+        options.paths.results / "sweep_k_rgb888.pdf",
+        "xormap RGB888: every SIPI colour image — full test report",
+        std::to_string(images.size()) + " images; sweep (entropy/correlation/"
+            "plaintext-bit diffusion) + key-bit sensitivity + histogram "
+            "(" + std::to_string(pass_count) + "/" + std::to_string(analysis_rows.size()) +
+            " cipher cases pass chi-square at alpha=0.05) + PSNR, native C++ parallel",
+        panels, 3U);
+    progress << "wrote one combined " << csv_path << " (" << task_count
+              << " image/K rows + " << bits.size() << " bit-study rows) and "
+                 "combined all " << panels.size()
+              << " panels into one sweep_k_rgb888.pdf\n";
 }
 
 }  // namespace xormap_color::rgb888

@@ -9,6 +9,8 @@
 
 namespace xormap_image {
 
+struct Panel;
+
 struct EvaluationPaths {
     std::filesystem::path images_directory;
     std::filesystem::path results_directory;
@@ -50,8 +52,23 @@ std::vector<std::size_t> make_k_values(std::size_t first,
 
 void run_all(const RunAllOptions& options, std::ostream& progress);
 void sweep_three_images(const SweepOptions& options, std::ostream& progress);
-void sweep_all_images(const SweepOptions& options, std::ostream& progress);
-void analyze_all_images(const AnalysisOptions& options, std::ostream& progress);
+
+// When panels_out is null, each function writes its own standalone PDF (the
+// historical, individually-tested behaviour). When non-null, it appends its
+// panels to *panels_out instead of writing a PDF, so a caller can combine
+// both passes into one report; see run_tests() below.
+void sweep_all_images(const SweepOptions& options, std::ostream& progress,
+                      std::vector<Panel>* panels_out = nullptr);
+void analyze_all_images(const AnalysisOptions& options, std::ostream& progress,
+                        std::vector<Panel>* panels_out = nullptr);
+
+// Runs sweep_all_images() and analyze_all_images() back to back and writes
+// their combined panels into one sweep_k_gray_all.pdf alongside the five
+// CSVs each pass already writes.
+void run_tests(const SweepOptions& sweep_options,
+               const AnalysisOptions& analysis_options,
+               std::ostream& progress);
+
 void download_images(const DownloadOptions& options, std::ostream& progress);
 
 struct NormalizedSweepRow {

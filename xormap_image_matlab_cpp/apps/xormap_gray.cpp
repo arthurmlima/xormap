@@ -195,8 +195,7 @@ void print_help(std::ostream& output)
         "  xormap_gray verify\n"
         "  xormap_gray run-all [common options] [--k-first K]\n"
         "  xormap_gray sweep [common options] [--k-first 8 --k-step 4 --k-last 512]\n"
-        "  xormap_gray sweep-all [common options] [--k-first 24 --k-step 24 --k-last 384]\n"
-        "  xormap_gray analysis [common options] [--k-first 24 --k-step 24 --k-last 384]\n"
+        "  xormap_gray run-tests [common options] [--k-first 24 --k-step 24 --k-last 384]\n"
         "  xormap_gray download [--all] [--overwrite] [--images DIR] [--threads N]\n"
         "  xormap_gray read-sweep <gray|rgb888|CSV> [--results DIR]\n"
         "  xormap_gray compare [--gray CSV] [--rgb CSV] [--output CSV]\n\n"
@@ -207,7 +206,7 @@ void print_help(std::ostream& output)
         "  --threads N      native C++ workers; 0 means hardware concurrency\n"
         "  --samples N      override adjacent-pixel samples (run-all defaults to\n"
         "                   5000 metrics / 3000 scatter; sweeps default to 3000)\n\n"
-        "The sweep and analysis commands use the optimized transform only after\n"
+        "The sweep and run-tests commands use the optimized transform only after\n"
         "'verify' proves it identical to the canonical MATLAB translation.\n";
 }
 
@@ -321,29 +320,27 @@ int main(int argc, char** argv)
             sweep.correlation_samples = options.samples == 0 ? 3000 : options.samples;
             sweep.workers = options.threads;
             xormap_image::sweep_three_images(sweep, std::cout);
-        } else if (command == "sweep-all") {
-            validate_options(options, "sweep-all",
+        } else if (command == "run-tests") {
+            validate_options(options, "run-tests",
                              {"--images", "--results", "--manifest", "--threads",
                               "--k-first", "--k-step", "--k-last", "--samples"});
-            reject_positionals(options, "sweep-all");
+            reject_positionals(options, "run-tests");
+            const auto k_values = selected_grid(options, 24, 24, 384);
+
             xormap_image::SweepOptions sweep;
             sweep.paths = {options.images, options.results};
             sweep.manifest_path = options.manifest;
-            sweep.k_values = selected_grid(options, 24, 24, 384);
+            sweep.k_values = k_values;
             sweep.correlation_samples = options.samples == 0 ? 3000 : options.samples;
             sweep.workers = options.threads;
-            xormap_image::sweep_all_images(sweep, std::cout);
-        } else if (command == "analysis") {
-            validate_options(options, "analysis",
-                             {"--images", "--results", "--manifest", "--threads",
-                              "--k-first", "--k-step", "--k-last"});
-            reject_positionals(options, "analysis");
+
             xormap_image::AnalysisOptions analysis;
             analysis.paths = {options.images, options.results};
             analysis.manifest_path = options.manifest;
-            analysis.k_values = selected_grid(options, 24, 24, 384);
+            analysis.k_values = k_values;
             analysis.workers = options.threads;
-            xormap_image::analyze_all_images(analysis, std::cout);
+
+            xormap_image::run_tests(sweep, analysis, std::cout);
         } else if (command == "download") {
             validate_options(options, "download",
                              {"--images", "--threads", "--all", "--overwrite"});

@@ -288,6 +288,8 @@ struct SweepAllRow {
     double abs_corr_h = 0.0;
     double npcr = 0.0;
     double uaci = 0.0;
+    // Kept only for sweep_all_images()'s standalone CSV, whose header is
+    // asserted verbatim by tests. run_tests()'s combined CSV omits it.
     double seconds = 0.0;
 };
 
@@ -458,11 +460,14 @@ struct CsvRecord {
         finish_record();
     }
 
-    records.erase(std::remove_if(records.begin(), records.end(),
-                                 [](const CsvRecord& record) {
-                                     return record.fields.size() == 1U &&
-                                            record.fields.front().empty();
-                                 }),
+    // A blank line ends the table: run-tests/sweep-all follow it with a
+    // second table (a different schema, e.g. the per-bit key-sensitivity
+    // study) in the same file. Truncate there instead of skipping past it,
+    // so that appendix is never parsed as more rows of this table.
+    const auto is_blank = [](const CsvRecord& record) {
+        return record.fields.size() == 1U && record.fields.front().empty();
+    };
+    records.erase(std::find_if(records.begin(), records.end(), is_blank),
                   records.end());
     if (records.empty()) {
         csv_error(path, 1U, "file is empty");
@@ -606,6 +611,59 @@ void add_ideal_line(Panel& panel, double value, std::string label = "ideal")
     panel.reference_lines.push_back(
         {value, std::move(label), Color{0.25, 0.27, 0.30, 0.75},
          ReferenceOrientation::Horizontal, 0.9});
+}
+
+template <typename Row, typename Value>
+[[nodiscard]] std::vector<Point> mean_points_for(const std::vector<Row>& rows,
+                                                  Value value)
+{
+    std::map<std::size_t, std::pair<long double, std::size_t>> totals;
+    for (const Row& row : rows) {
+        const double measured = value(row);
+        if (!std::isfinite(measured)) {
+            continue;
+        }
+        auto& total = totals[row.k];
+        total.first += measured;
+        ++total.second;
+    }
+    std::vector<Point> means;
+    means.reserve(totals.size());
+    for (const auto& entry : totals) {
+        means.push_back({
+            static_cast<double>(entry.first),
+            static_cast<double>(entry.second.first /
+                                static_cast<long double>(entry.second.second)),
+        });
+    }
+    return means;
+}
+
+// Plots NPCR and UACI as two mean-over-images lines in one panel instead of
+// two separate panels, since both are percentages read against K.
+template <typename Row, typename NpcrValue, typename UaciValue>
+[[nodiscard]] Panel combined_npcr_uaci_panel(const std::vector<Row>& rows,
+                                             NpcrValue npcr_value,
+                                             double npcr_ideal,
+                                             UaciValue uaci_value,
+                                             double uaci_ideal,
+                                             std::string title)
+{
+    Panel panel;
+    panel.title = std::move(title);
+    panel.x_label = "K (state bits)";
+    panel.y_label = "Percent (%)";
+    panel.series.push_back(plot_series("NPCR", mean_points_for(rows, npcr_value),
+                                       kOrange, SeriesStyle::Line, 2.2));
+    panel.series.push_back(plot_series("UACI", mean_points_for(rows, uaci_value),
+                                       kBlue, SeriesStyle::Line, 2.2));
+    if (std::isfinite(npcr_ideal)) {
+        add_ideal_line(panel, npcr_ideal, "NPCR ideal");
+    }
+    if (std::isfinite(uaci_ideal)) {
+        add_ideal_line(panel, uaci_ideal, "UACI ideal");
+    }
+    return panel;
 }
 
 template <typename Row, typename Value>
@@ -1127,22 +1185,29 @@ void sweep_three_images(const SweepOptions& options, std::ostream& progress)
     progress << "Wrote " << pdf_path << '\n';
 }
 
-void sweep_all_images(const SweepOptions& options, std::ostream& progress)
+struct SweepAllComputation {
+    std::vector<ManifestEntry> entries;
+    std::vector<Image> images;
+    std::vector<SweepAllRow> rows;
+};
+
+// Shared by sweep_all_images() and run_tests() so both compute identically.
+[[nodiscard]] SweepAllComputation compute_sweep_all(const SweepOptions& options,
+                                                     std::ostream& progress)
 {
     validate_k_values(options.k_values);
     if (options.correlation_samples == 0U) {
         throw std::invalid_argument("correlation sample count must be positive");
     }
-    make_directory(options.paths.results_directory);
     const fs::path manifest = options.manifest_path.empty()
         ? options.paths.images_directory / "manifest_gray.csv"
         : options.manifest_path;
-    const std::vector<ManifestEntry> entries =
+    std::vector<ManifestEntry> entries =
         read_gray_manifest(manifest, options.paths.images_directory);
     if (entries.empty()) {
         throw std::runtime_error("grayscale manifest contains no images");
     }
-    const std::vector<Image> images =
+    std::vector<Image> images =
         load_manifest_images(entries, options.workers, progress);
 
     if (entries.size() > std::numeric_limits<std::size_t>::max() /
@@ -1202,18 +1267,22 @@ void sweep_all_images(const SweepOptions& options, std::ostream& progress)
         rows[task] = row;
         counter.completed_one();
     });
+    return {std::move(entries), std::move(images), std::move(rows)};
+}
 
-    const fs::path csv_path =
-        options.paths.results_directory / "sweep_k_gray_all.csv";
+void write_sweep_all_csv(const fs::path& csv_path,
+                         const SweepAllComputation& computed)
+{
     std::ofstream output = open_output(csv_path);
     output << "image,volume,K,height,width,num_pixels,iterations_per_encrypt,"
               "pixels_per_iteration,entropy_cipher,abs_corrH_cipher,npcr,uaci,"
               "seconds_two_encryptions\n";
-    for (const SweepAllRow& row : rows) {
-        const ManifestEntry& entry = entries[row.image_index];
+    for (const SweepAllRow& row : computed.rows) {
+        const ManifestEntry& entry = computed.entries[row.image_index];
         output << csv_escape(entry.name) << ',' << csv_escape(entry.volume) << ','
                << row.k << ',' << entry.height << ',' << entry.width << ','
-               << images[row.image_index].size() << ',' << row.iterations << ',';
+               << computed.images[row.image_index].size() << ',' << row.iterations
+               << ',';
         if (row.k % kBitsPerByte == 0U) {
             output << row.k / kBitsPerByte;
         } else {
@@ -1228,6 +1297,11 @@ void sweep_all_images(const SweepOptions& options, std::ostream& progress)
                << fixed_number(row.seconds, 4) << '\n';
     }
     finish_output(output, csv_path);
+}
+
+[[nodiscard]] std::vector<Panel> build_sweep_all_panels(
+    const std::vector<SweepAllRow>& rows)
+{
     const NpcrUaciResult ideal = npcr_uaci_ideal(8);
     std::vector<Panel> panels;
     panels.push_back(scatter_mean_panel(
@@ -1236,39 +1310,60 @@ void sweep_all_images(const SweepOptions& options, std::ostream& progress)
     panels.push_back(scatter_mean_panel(
         rows, [](const SweepAllRow& row) { return row.abs_corr_h; },
         "Horizontal correlation", "Mean |correlation|", kOrange, 0.0));
-    panels.push_back(scatter_mean_panel(
-        rows, [](const SweepAllRow& row) { return row.npcr; },
-        "NPCR", "NPCR (%)", kOrange, ideal.npcr_percent));
-    panels.push_back(scatter_mean_panel(
-        rows, [](const SweepAllRow& row) { return row.uaci; },
-        "UACI", "UACI (%)", kOrange, ideal.uaci_percent));
-    panels.push_back(scatter_mean_panel(
-        rows, [](const SweepAllRow& row) { return row.seconds; },
-        "Two-encryption time", "Seconds", kOrange));
+    panels.push_back(combined_npcr_uaci_panel(
+        rows, [](const SweepAllRow& row) { return row.npcr; }, ideal.npcr_percent,
+        [](const SweepAllRow& row) { return row.uaci; }, ideal.uaci_percent,
+        "NPCR/UACI (plaintext bit flip)"));
+    return panels;
+}
+
+void sweep_all_images(const SweepOptions& options, std::ostream& progress,
+                      std::vector<Panel>* panels_out)
+{
+    const SweepAllComputation computed = compute_sweep_all(options, progress);
+    make_directory(options.paths.results_directory);
+    const fs::path csv_path =
+        options.paths.results_directory / "sweep_k_gray_all.csv";
+    write_sweep_all_csv(csv_path, computed);
+    progress << "Wrote " << csv_path << '\n';
+
+    std::vector<Panel> panels = build_sweep_all_panels(computed.rows);
+    if (panels_out != nullptr) {
+        panels_out->insert(panels_out->end(), panels.begin(), panels.end());
+        return;
+    }
     const fs::path pdf_path =
         options.paths.results_directory / "sweep_k_gray_all.pdf";
     write_plot_grid_pdf(
         pdf_path, "xormap grayscale: every SIPI grayscale image",
-        std::to_string(entries.size()) +
+        std::to_string(computed.entries.size()) +
             " images; native C++ parallel sweep; faint points are images",
         panels, 2U);
-    progress << "Wrote " << csv_path << '\n';
     progress << "Wrote " << pdf_path << '\n';
 }
 
-void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
+struct AnalysisComputation {
+    std::vector<ManifestEntry> entries;
+    std::vector<Image> images;
+    std::vector<AnalysisRow> rows;
+    std::vector<BitStudyRow> bit_rows;
+    std::size_t histogram_passes = 0U;
+};
+
+// Shared by analyze_all_images() and run_tests() so both compute identically.
+[[nodiscard]] AnalysisComputation compute_analysis_all(const AnalysisOptions& options,
+                                                        std::ostream& progress)
 {
     validate_k_values(options.k_values);
-    make_directory(options.paths.results_directory);
     const fs::path manifest = options.manifest_path.empty()
         ? options.paths.images_directory / "manifest_gray.csv"
         : options.manifest_path;
-    const std::vector<ManifestEntry> entries =
+    std::vector<ManifestEntry> entries =
         read_gray_manifest(manifest, options.paths.images_directory);
     if (entries.empty()) {
         throw std::runtime_error("grayscale manifest contains no images");
     }
-    const std::vector<Image> images =
+    std::vector<Image> images =
         load_manifest_images(entries, options.workers, progress);
 
     std::vector<ChiSquareResult> plain_chi(entries.size());
@@ -1404,14 +1499,28 @@ void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
         bit_counter.completed_one();
     });
 
+    std::size_t histogram_passes = 0U;
+    for (const AnalysisRow& row : rows) {
+        if (row.chi2_cipher <= row.chi2_critical) {
+            ++histogram_passes;
+        }
+    }
+    return {std::move(entries), std::move(images), std::move(rows),
+            std::move(bit_rows), histogram_passes};
+}
+
+void write_analysis_csvs(const AnalysisOptions& options,
+                         const AnalysisComputation& computed,
+                         std::ostream& progress)
+{
     const fs::path key_path =
         options.paths.results_directory / "key_sensitivity_gray.csv";
     std::ofstream key_output = open_output(key_path);
     key_output << "image,volume,K,num_pixels,flipped_key_bit,npcr_key,uaci_key,"
                   "psnr_cipher_pair_db,psnr_plain_wrongkey_db,first_differing_byte,"
                   "key_diff_checksum\n";
-    for (const AnalysisRow& row : rows) {
-        const ManifestEntry& entry = entries[row.image_index];
+    for (const AnalysisRow& row : computed.rows) {
+        const ManifestEntry& entry = computed.entries[row.image_index];
         key_output << csv_escape(entry.name) << ',' << csv_escape(entry.volume) << ','
                    << row.k << ',' << row.num_pixels << ",1,"
                    << fixed_number(row.npcr_key, 6) << ','
@@ -1426,7 +1535,7 @@ void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
         options.paths.results_directory / "key_sensitivity_bits_gray.csv";
     std::ofstream bits_output = open_output(bits_path);
     bits_output << "K,flipped_key_bit,npcr_key,uaci_key,psnr_cipher_pair_db\n";
-    for (const BitStudyRow& row : bit_rows) {
+    for (const BitStudyRow& row : computed.bit_rows) {
         bits_output << row.k << ',' << row.bit << ','
                     << fixed_number(row.npcr, 6) << ','
                     << fixed_number(row.uaci, 6) << ','
@@ -1439,11 +1548,9 @@ void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
     std::ofstream histogram_output = open_output(histogram_path);
     histogram_output << "image,volume,K,num_pixels,chi2_plain,chi2_cipher,"
                          "chi2_critical_005,cipher_uniform_pass\n";
-    std::size_t histogram_passes = 0U;
-    for (const AnalysisRow& row : rows) {
-        const ManifestEntry& entry = entries[row.image_index];
+    for (const AnalysisRow& row : computed.rows) {
+        const ManifestEntry& entry = computed.entries[row.image_index];
         const bool passes = row.chi2_cipher <= row.chi2_critical;
-        histogram_passes += passes ? 1U : 0U;
         histogram_output << csv_escape(entry.name) << ','
                          << csv_escape(entry.volume) << ',' << row.k << ','
                          << row.num_pixels << ',' << fixed_number(row.chi2_plain, 4)
@@ -1458,8 +1565,8 @@ void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
     std::ofstream psnr_output = open_output(psnr_path);
     psnr_output << "image,volume,K,num_pixels,psnr_plain_cipher_db,"
                    "psnr_plain_wrongkey_db,psnr_roundtrip_db\n";
-    for (const AnalysisRow& row : rows) {
-        const ManifestEntry& entry = entries[row.image_index];
+    for (const AnalysisRow& row : computed.rows) {
+        const ManifestEntry& entry = computed.entries[row.image_index];
         psnr_output << csv_escape(entry.name) << ',' << csv_escape(entry.volume)
                     << ',' << row.k << ',' << row.num_pixels << ','
                     << fixed_number(row.psnr_plain_cipher, 4) << ','
@@ -1468,79 +1575,197 @@ void analyze_all_images(const AnalysisOptions& options, std::ostream& progress)
     }
     finish_output(psnr_output, psnr_path);
 
-    const NpcrUaciResult ideal = npcr_uaci_ideal(8);
+    const double pass_rate = 100.0 * static_cast<double>(computed.histogram_passes) /
+                             static_cast<double>(computed.rows.size());
+    progress << "Cipher histograms passing chi-square at alpha=0.05: "
+             << fixed_number(pass_rate, 1) << "%\n"
+             << "Round-trip PSNR is +Inf in " << computed.rows.size() << " of "
+             << computed.rows.size() << " cases.\n"
+             << "Wrote " << key_path << '\n'
+             << "Wrote " << bits_path << '\n'
+             << "Wrote " << histogram_path << '\n'
+             << "Wrote " << psnr_path << '\n';
+}
+
+struct AnalysisPanels {
     std::vector<Panel> key_panels;
-    key_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.npcr_key; },
-        "One-bit key NPCR", "NPCR (%)", kBlue, ideal.npcr_percent));
-    key_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.uaci_key; },
-        "One-bit key UACI", "UACI (%)", kBlue, ideal.uaci_percent));
-    key_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.psnr_plain_wrong_key; },
+    std::vector<Panel> histogram_panels;
+    std::vector<Panel> psnr_panels;
+};
+
+[[nodiscard]] AnalysisPanels build_analysis_panels(
+    const AnalysisComputation& computed, std::size_t example_k)
+{
+    const NpcrUaciResult ideal = npcr_uaci_ideal(8);
+    AnalysisPanels result;
+    result.key_panels.push_back(combined_npcr_uaci_panel(
+        computed.rows, [](const AnalysisRow& row) { return row.npcr_key; },
+        ideal.npcr_percent,
+        [](const AnalysisRow& row) { return row.uaci_key; }, ideal.uaci_percent,
+        "NPCR/UACI (key bit flip)"));
+    result.key_panels.push_back(scatter_mean_panel(
+        computed.rows,
+        [](const AnalysisRow& row) { return row.psnr_plain_wrong_key; },
         "Wrong-key decryption", "PSNR (dB)", kBlue));
-    key_panels.push_back(scatter_mean_panel(
-        bit_rows, [](const BitStudyRow& row) { return row.npcr; },
+    result.key_panels.push_back(scatter_mean_panel(
+        computed.bit_rows, [](const BitStudyRow& row) { return row.npcr; },
         "By flipped key-bit position", "NPCR (%)", kBlue,
         ideal.npcr_percent, "flipped bit positions"));
+
+    result.histogram_panels.push_back(scatter_mean_panel(
+        computed.rows, [](const AnalysisRow& row) { return row.chi2_cipher; },
+        "Cipher chi-square", "Chi-square (255 dof)", kBlue,
+        computed.rows.front().chi2_critical));
+    result.histogram_panels.push_back(make_log_chi_square_distribution_panel(
+        computed.rows, computed.rows.front().chi2_critical));
+
+    const Bytes example_cipher =
+        encrypt_fast(computed.images.front().pixels(), secret_key(example_k)).cipher;
+    result.histogram_panels.push_back(make_histogram_panel(
+        "Cipher histogram (K=" + std::to_string(example_k) + ")",
+        example_cipher, kBlue));
+
+    result.psnr_panels.push_back(scatter_mean_panel(
+        computed.rows, [](const AnalysisRow& row) { return row.psnr_plain_cipher; },
+        "Plain versus cipher", "PSNR (dB)", kBlue));
+    result.psnr_panels.push_back(scatter_mean_panel(
+        computed.rows,
+        [](const AnalysisRow& row) { return row.psnr_plain_wrong_key; },
+        "Plain versus wrong-key decrypt", "PSNR (dB)", kBlue));
+    return result;
+}
+
+void analyze_all_images(const AnalysisOptions& options, std::ostream& progress,
+                        std::vector<Panel>* panels_out)
+{
+    const AnalysisComputation computed = compute_analysis_all(options, progress);
+    make_directory(options.paths.results_directory);
+    write_analysis_csvs(options, computed, progress);
+
+    const AnalysisPanels panels =
+        build_analysis_panels(computed, options.k_values.back());
+    if (panels_out != nullptr) {
+        panels_out->insert(panels_out->end(), panels.key_panels.begin(),
+                           panels.key_panels.end());
+        panels_out->insert(panels_out->end(), panels.histogram_panels.begin(),
+                           panels.histogram_panels.end());
+        panels_out->insert(panels_out->end(), panels.psnr_panels.begin(),
+                           panels.psnr_panels.end());
+        return;
+    }
+
     const fs::path key_pdf =
         options.paths.results_directory / "key_sensitivity_gray.pdf";
     write_plot_grid_pdf(
         key_pdf, "Key sensitivity: grayscale, all SIPI grayscale images",
         "one flipped key bit; image-independent XOR-difference checks passed",
-        key_panels, 2U);
+        panels.key_panels, 2U);
 
-    std::vector<Panel> histogram_panels;
-    histogram_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.chi2_cipher; },
-        "Cipher chi-square", "Chi-square (255 dof)", kBlue,
-        rows.front().chi2_critical));
-    histogram_panels.push_back(make_log_chi_square_distribution_panel(
-        rows, rows.front().chi2_critical));
-
-    const std::size_t example_k = options.k_values.back();
-    const Bytes example_cipher =
-        encrypt_fast(images.front().pixels(), secret_key(example_k)).cipher;
-    histogram_panels.push_back(make_histogram_panel(
-        "Plain histogram (" + entries.front().name + ")",
-        images.front().pixels(), kOrange));
-    histogram_panels.push_back(make_histogram_panel(
-        "Cipher histogram (K=" + std::to_string(example_k) + ")",
-        example_cipher, kBlue));
     const fs::path histogram_pdf =
         options.paths.results_directory / "histogram_analysis_gray.pdf";
     write_plot_grid_pdf(
         histogram_pdf, "Histogram analysis: grayscale",
         "chi-square uniformity over 256 levels; native C++ vector report",
-        histogram_panels, 2U);
+        panels.histogram_panels, 2U);
 
-    std::vector<Panel> psnr_panels;
-    psnr_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.psnr_plain_cipher; },
-        "Plain versus cipher", "PSNR (dB)", kBlue));
-    psnr_panels.push_back(scatter_mean_panel(
-        rows, [](const AnalysisRow& row) { return row.psnr_plain_wrong_key; },
-        "Plain versus wrong-key decrypt", "PSNR (dB)", kBlue));
     const fs::path psnr_pdf =
         options.paths.results_directory / "psnr_analysis_gray.pdf";
     write_plot_grid_pdf(
         psnr_pdf, "PSNR: grayscale, all SIPI grayscale images",
         "low means plaintext is not recoverable; correct round-trip is +Inf",
-        psnr_panels, 2U);
+        panels.psnr_panels, 2U);
 
-    const double pass_rate = 100.0 * static_cast<double>(histogram_passes) /
-                             static_cast<double>(rows.size());
-    progress << "Cipher histograms passing chi-square at alpha=0.05: "
-             << fixed_number(pass_rate, 1) << "%\n"
-             << "Round-trip PSNR is +Inf in " << rows.size() << " of "
-             << rows.size() << " cases.\n"
-             << "Wrote " << key_path << '\n'
-             << "Wrote " << bits_path << '\n'
-             << "Wrote " << histogram_path << '\n'
-             << "Wrote " << psnr_path << '\n'
-             << "Wrote " << key_pdf << '\n'
+    progress << "Wrote " << key_pdf << '\n'
              << "Wrote " << histogram_pdf << '\n'
              << "Wrote " << psnr_pdf << '\n';
+}
+
+void run_tests(const SweepOptions& sweep_options,
+               const AnalysisOptions& analysis_options,
+               std::ostream& progress)
+{
+    const SweepAllComputation sweep_computed =
+        compute_sweep_all(sweep_options, progress);
+    const AnalysisComputation analysis_computed =
+        compute_analysis_all(analysis_options, progress);
+    if (sweep_computed.rows.size() != analysis_computed.rows.size()) {
+        throw std::runtime_error(
+            "run-tests: sweep and analysis passes produced different task counts");
+    }
+
+    make_directory(sweep_options.paths.results_directory);
+    const fs::path csv_path =
+        sweep_options.paths.results_directory / "sweep_k_gray_all.csv";
+    std::ofstream csv = open_output(csv_path);
+    csv << "image,volume,K,height,width,num_pixels,iterations_per_encrypt,"
+           "pixels_per_iteration,entropy_cipher,abs_corrH_cipher,"
+           "npcr_plaintext_flip,uaci_plaintext_flip,"
+           "flipped_key_bit,npcr_key_flip,uaci_key_flip,psnr_cipher_pair_db,"
+           "psnr_plain_wrongkey_db,first_differing_byte,key_diff_checksum,"
+           "chi2_plain,chi2_cipher,chi2_critical_005,cipher_uniform_pass,"
+           "psnr_plain_cipher_db,psnr_roundtrip_db\n";
+    // sweep_computed.rows[i] and analysis_computed.rows[i] are the same
+    // (image,K) task: both passes iterate the same images x k_values in
+    // identical K-major order (see compute_sweep_all/compute_analysis_all).
+    for (std::size_t i = 0; i < sweep_computed.rows.size(); ++i) {
+        const SweepAllRow& sweep_row = sweep_computed.rows[i];
+        const AnalysisRow& analysis_row = analysis_computed.rows[i];
+        const ManifestEntry& entry = sweep_computed.entries[sweep_row.image_index];
+        csv << csv_escape(entry.name) << ',' << csv_escape(entry.volume) << ','
+            << sweep_row.k << ',' << entry.height << ',' << entry.width << ','
+            << sweep_computed.images[sweep_row.image_index].size() << ','
+            << sweep_row.iterations << ',';
+        if (sweep_row.k % kBitsPerByte == 0U) {
+            csv << sweep_row.k / kBitsPerByte;
+        } else {
+            csv << fixed_number(static_cast<double>(sweep_row.k) /
+                                    static_cast<double>(kBitsPerByte), 6);
+        }
+        csv << ',' << fixed_number(sweep_row.entropy, 6) << ','
+            << fixed_number(sweep_row.abs_corr_h, 6) << ','
+            << fixed_number(sweep_row.npcr, 6) << ','
+            << fixed_number(sweep_row.uaci, 6) << ",1,"
+            << fixed_number(analysis_row.npcr_key, 6) << ','
+            << fixed_number(analysis_row.uaci_key, 6) << ','
+            << fixed_number(analysis_row.psnr_cipher_pair, 4) << ','
+            << fixed_number(analysis_row.psnr_plain_wrong_key, 4) << ','
+            << analysis_row.first_difference << ',' << analysis_row.checksum
+            << ',' << fixed_number(analysis_row.chi2_plain, 4) << ','
+            << fixed_number(analysis_row.chi2_cipher, 4) << ','
+            << fixed_number(analysis_row.chi2_critical, 4) << ','
+            << (analysis_row.chi2_cipher <= analysis_row.chi2_critical ? 1 : 0)
+            << ',' << fixed_number(analysis_row.psnr_plain_cipher, 4) << ','
+            << fixed_number(analysis_row.psnr_roundtrip, 4) << '\n';
+    }
+    csv << '\n';
+    csv << "K,flipped_key_bit,npcr_key_bitstudy,uaci_key_bitstudy,"
+           "psnr_cipher_pair_bitstudy_db\n";
+    for (const BitStudyRow& row : analysis_computed.bit_rows) {
+        csv << row.k << ',' << row.bit << ',' << fixed_number(row.npcr, 6) << ','
+            << fixed_number(row.uaci, 6) << ',' << fixed_number(row.psnr, 4) << '\n';
+    }
+    finish_output(csv, csv_path);
+    progress << "Wrote " << csv_path << '\n';
+
+    std::vector<Panel> panels = build_sweep_all_panels(sweep_computed.rows);
+    const AnalysisPanels analysis_panels = build_analysis_panels(
+        analysis_computed, analysis_options.k_values.back());
+    panels.insert(panels.end(), analysis_panels.key_panels.begin(),
+                  analysis_panels.key_panels.end());
+    panels.insert(panels.end(), analysis_panels.histogram_panels.begin(),
+                  analysis_panels.histogram_panels.end());
+    panels.insert(panels.end(), analysis_panels.psnr_panels.begin(),
+                  analysis_panels.psnr_panels.end());
+
+    const fs::path pdf_path =
+        sweep_options.paths.results_directory / "sweep_k_gray_all.pdf";
+    write_plot_grid_pdf(
+        pdf_path, "xormap grayscale: every SIPI grayscale image — full test report",
+        "sweep (entropy/correlation/plaintext-bit diffusion) + "
+        "key-bit sensitivity + histogram + PSNR, native C++ parallel",
+        panels, 3U);
+    progress << "Combined all " << panels.size()
+             << " panels into one " << pdf_path << '\n';
 }
 
 void download_images(const DownloadOptions& options, std::ostream& progress)
@@ -1641,9 +1866,11 @@ NormalizedSweep read_sweep_csv(const fs::path& path, std::string display_name)
     const auto columns = header_map(header, path);
 
     const bool is_rgb = columns.count("mean_entropy_cipher") != 0U &&
-                        columns.count("npcr_packed") != 0U;
+                        (columns.count("npcr_plaintext_flip_packed") != 0U ||
+                         columns.count("npcr_packed") != 0U);
     const bool is_gray = columns.count("entropy_cipher") != 0U &&
-                         columns.count("npcr") != 0U;
+                         (columns.count("npcr_plaintext_flip") != 0U ||
+                          columns.count("npcr") != 0U);
     if (is_rgb == is_gray) {
         csv_error(path, header.line,
                   "unrecognized or ambiguous sweep CSV schema");
@@ -1665,13 +1892,23 @@ NormalizedSweep read_sweep_csv(const fs::path& path, std::string display_name)
     const std::size_t corr_column = require_column(
         columns, is_rgb ? "mean_abs_corrH_cipher" : "abs_corrH_cipher", path,
         header.line);
+    // Prefer the plaintext-bit-flip columns (current schema); fall back to
+    // the pre-consolidation bare names for old CSVs still on disk.
     const std::size_t npcr_column = require_column(
-        columns, is_rgb ? "npcr_packed" : "npcr", path, header.line);
+        columns,
+        columns.count(is_rgb ? "npcr_plaintext_flip_packed" : "npcr_plaintext_flip")
+            ? (is_rgb ? "npcr_plaintext_flip_packed" : "npcr_plaintext_flip")
+            : (is_rgb ? "npcr_packed" : "npcr"),
+        path, header.line);
     const std::size_t uaci_column = require_column(
-        columns, is_rgb ? "uaci_packed" : "uaci", path, header.line);
-    const std::size_t seconds_column = require_column(
-        columns, is_rgb ? "seconds" : "seconds_two_encryptions", path,
-        header.line);
+        columns,
+        columns.count(is_rgb ? "uaci_plaintext_flip_packed" : "uaci_plaintext_flip")
+            ? (is_rgb ? "uaci_plaintext_flip_packed" : "uaci_plaintext_flip")
+            : (is_rgb ? "uaci_packed" : "uaci"),
+        path, header.line);
+    // Encryption/decryption timing is no longer collected; treat it as
+    // optional so both old (with timing) and new CSVs read cleanly.
+    const auto seconds_found = columns.find(is_rgb ? "seconds" : "seconds_two_encryptions");
 
     NormalizedSweep sweep;
     sweep.rows.reserve(records.size() - 1U);
@@ -1711,8 +1948,10 @@ NormalizedSweep read_sweep_csv(const fs::path& path, std::string display_name)
                                 header.fields[npcr_column]);
         row.uaci = parse_double(record.fields[uaci_column], path, record.line,
                                 header.fields[uaci_column]);
-        row.seconds = parse_double(record.fields[seconds_column], path,
-                                   record.line, header.fields[seconds_column]);
+        row.seconds = seconds_found == columns.end()
+            ? std::numeric_limits<double>::quiet_NaN()
+            : parse_double(record.fields[seconds_found->second], path,
+                           record.line, header.fields[seconds_found->second]);
         sweep.rows.push_back(std::move(row));
     }
     if (sweep.rows.empty()) {

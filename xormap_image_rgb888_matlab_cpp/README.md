@@ -50,13 +50,26 @@ source or external data directory is required.
 ```sh
 ./build/xormap_rgb888 help
 ./build/xormap_rgb888 verify
-./build/xormap_rgb888 sweep --threads 8
-./build/xormap_rgb888 analysis --threads 8
+./build/xormap_rgb888 run-tests --threads 8
 ```
 
-Both large commands accept `--images`, `--manifest`, `--results`,
-`--threads`, and `--k-first/--k-step/--k-last`. `sweep` also accepts
-`--samples`.
+`run-tests` runs the 51-image sweep and the key-sensitivity/histogram/PSNR
+analysis in one execution and writes exactly one CSV and one PDF:
+`sweep_k_rgb888.csv` has one row per (image, K) with every sweep and
+analysis metric as columns, followed by a second table (after a blank line)
+with the per-bit key-sensitivity study (one representative image, K x bit
+position); `sweep_k_rgb888.pdf` combines every panel from both passes into
+11 panels (no cross-format comparison output). Encryption/decryption timing
+is not collected (it isn't a security metric and varies by machine load).
+NPCR and UACI for a given perturbation share one panel/column pair instead
+of two; columns and panels are labelled "plaintext bit flip" (sweep) versus
+"key bit flip" (key sensitivity) — they measure different perturbations and
+the numbers are not expected to match. Only the cipher's pixel histogram is
+plotted (the plaintext's is a real photo and unsurprisingly non-uniform;
+the "Plain vs cipher chi-square" panel already reports how non-uniform it
+is quantitatively). It accepts `--images`, `--manifest`, `--results`,
+`--threads`, `--k-first/--k-step/--k-last`, and `--samples` (used by the
+sweep pass).
 
 The standard grid is `K=24:24:384`: 51 images x 16 K values = 816 tasks.
 Outputs reproduce the MATLAB CSV schemas and generate native Cairo vector

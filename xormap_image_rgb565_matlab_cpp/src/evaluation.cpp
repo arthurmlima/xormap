@@ -278,6 +278,64 @@ struct SweepRow {
     return panel;
 }
 
+[[nodiscard]] xormap_image::Series aggregate_mean_series(
+    const std::string& label, const std::vector<SweepRow>& rows,
+    const std::vector<std::size_t>& ks, double SweepRow::*field,
+    xormap_image::Color color)
+{
+    xormap_image::Series series;
+    series.label = label;
+    series.style = xormap_image::SeriesStyle::Line;
+    series.line_width = 2.0;
+    series.marker_radius = 2.7;
+    series.color = color;
+    for (const std::size_t k : ks) {
+        long double sum = 0.0L;
+        std::size_t count = 0;
+        for (const auto& row : rows) {
+            if (row.k == k) {
+                sum += row.*field;
+                ++count;
+            }
+        }
+        series.points.push_back({static_cast<double>(k),
+            static_cast<double>(sum / static_cast<long double>(count))});
+    }
+    return series;
+}
+
+// Plots NPCR and UACI as two mean-over-images lines in one panel instead of
+// two separate panels, since both are percentages read against K.
+[[nodiscard]] xormap_image::Panel combined_npcr_uaci_panel(
+    const std::vector<SweepRow>& rows, const std::vector<std::size_t>& ks,
+    double npcr_ideal, double uaci_ideal)
+{
+    constexpr xormap_image::Color kNpcrColor{0.922, 0.408, 0.204, 1.0};
+    constexpr xormap_image::Color kUaciColor{0.165, 0.471, 0.839, 1.0};
+    xormap_image::Panel panel;
+    panel.title = "NPCR/UACI (plaintext bit flip)";
+    panel.x_label = "K (state bits)";
+    panel.y_label = "Percent (%)";
+    panel.series.push_back(aggregate_mean_series("NPCR", rows, ks,
+                                                  &SweepRow::npcr, kNpcrColor));
+    panel.series.push_back(aggregate_mean_series("UACI", rows, ks,
+                                                  &SweepRow::uaci, kUaciColor));
+    if (std::isfinite(npcr_ideal)) {
+        panel.reference_lines.push_back({npcr_ideal, "NPCR ideal",
+            {kNpcrColor.red, kNpcrColor.green, kNpcrColor.blue, 0.5},
+            xormap_image::ReferenceOrientation::Horizontal, 1.0});
+    }
+    if (std::isfinite(uaci_ideal)) {
+        panel.reference_lines.push_back({uaci_ideal, "UACI ideal",
+            {kUaciColor.red, kUaciColor.green, kUaciColor.blue, 0.5},
+            xormap_image::ReferenceOrientation::Horizontal, 1.0});
+    }
+    panel.x_range = xormap_image::AxisRange{
+        static_cast<double>(ks.front()) - 18.0,
+        static_cast<double>(ks.back()) + 18.0};
+    return panel;
+}
+
 void write_run_results(const Options& options,
                        const std::vector<RunSummary>& summaries)
 {
@@ -680,7 +738,7 @@ void sweep_all(const Options& options, std::ostream& progress)
     std::ofstream csv(csv_path);
     csv << "image,volume,K,height,width,num_pixels,iterations_per_encrypt,"
            "pixels_per_iteration,mean_norm_entropy_cipher,mean_abs_corrH_cipher,"
-           "npcr_packed,uaci_packed,seconds_two_encryptions\n" << std::fixed;
+           "npcr_plaintext_flip_packed,uaci_plaintext_flip_packed\n" << std::fixed;
     for (const auto& row : rows) {
         const auto& entry = images[row.image].entry;
         csv << xormap_image::csv_escape(entry.name) << ','
@@ -689,8 +747,7 @@ void sweep_all(const Options& options, std::ostream& progress)
             << row.iterations << ',' << std::setprecision(4)
             << row.pixels_per_iteration << ',' << std::setprecision(6)
             << row.normalized_entropy << ',' << row.correlation << ','
-            << row.npcr << ',' << row.uaci << ',' << std::setprecision(4)
-            << row.seconds << '\n';
+            << row.npcr << ',' << row.uaci << '\n';
     }
     const auto ideal = xormap_image::npcr_uaci_ideal(16);
     std::vector<xormap_image::Panel> panels;
@@ -698,13 +755,8 @@ void sweep_all(const Options& options, std::ostream& progress)
         rows, options.k_values, &SweepRow::normalized_entropy, 1.0));
     panels.push_back(aggregate_panel("Horizontal correlation", "Mean absolute correlation",
         rows, options.k_values, &SweepRow::correlation, 0.0));
-    panels.push_back(aggregate_panel("NPCR", "NPCR (%)", rows,
-        options.k_values, &SweepRow::npcr, ideal.npcr_percent));
-    panels.push_back(aggregate_panel("UACI", "UACI (%)", rows,
-        options.k_values, &SweepRow::uaci, ideal.uaci_percent));
-    panels.push_back(aggregate_panel("Two-encryption time", "Seconds", rows,
-        options.k_values, &SweepRow::seconds,
-        std::numeric_limits<double>::quiet_NaN()));
+    panels.push_back(combined_npcr_uaci_panel(
+        rows, options.k_values, ideal.npcr_percent, ideal.uaci_percent));
     xormap_image::write_plot_grid_pdf(
         options.paths.results / "sweep_k_rgb565_all.pdf",
         "xormap RGB565: every SIPI colour image",

@@ -5,8 +5,8 @@ GRAY_DIR := xormap_image_matlab_cpp
 RGB888_DIR := xormap_image_rgb888_matlab_cpp
 RGB565_DIR := xormap_image_rgb565_matlab_cpp
 
-.PHONY: all build color test verify convert-rgb565 rgb888-sweep \
-	rgb888-analysis rgb565-run-all rgb565-sweep rgb565-sweep-all \
+.PHONY: all build color test verify convert-rgb565 rgb888-run-tests \
+	rgb565-run-all rgb565-sweep rgb565-sweep-all \
 	full-color sanitize clean
 
 all: build
@@ -34,11 +34,8 @@ verify:
 convert-rgb565:
 	$(MAKE) -C $(RGB565_DIR) convert
 
-rgb888-sweep:
-	$(MAKE) -C $(RGB888_DIR) sweep
-
-rgb888-analysis:
-	$(MAKE) -C $(RGB888_DIR) analysis
+rgb888-run-tests:
+	$(MAKE) -C $(RGB888_DIR) run-tests
 
 rgb565-run-all:
 	$(MAKE) -C $(RGB565_DIR) run-all
@@ -49,7 +46,7 @@ rgb565-sweep:
 rgb565-sweep-all:
 	$(MAKE) -C $(RGB565_DIR) sweep-all
 
-full-color: convert-rgb565 rgb888-sweep rgb888-analysis rgb565-run-all \
+full-color: convert-rgb565 rgb888-run-tests rgb565-run-all \
 	rgb565-sweep rgb565-sweep-all
 
 sanitize:

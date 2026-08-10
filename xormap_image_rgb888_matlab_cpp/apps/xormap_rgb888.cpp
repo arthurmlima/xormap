@@ -42,11 +42,12 @@ void help()
     std::cout <<
         "Usage: xormap_rgb888 <command> [options]\n\n"
         "Commands:\n"
-        "  verify    Run the translated MATLAB RGB888 correctness tests\n"
-        "  sweep     Run every image x K task and write sweep CSV/PDF\n"
-        "  analysis  Run key sensitivity, histogram, and PSNR analysis\n"
-        "  help      Show this help\n\n"
-        "Sweep/analysis options:\n"
+        "  verify     Run the translated MATLAB RGB888 correctness tests\n"
+        "  run-tests  Run every image x K sweep task plus key sensitivity,\n"
+        "             histogram, and PSNR analysis in one pass. Writes one\n"
+        "             combined sweep_k_rgb888.csv and one sweep_k_rgb888.pdf.\n"
+        "  help       Show this help\n\n"
+        "run-tests options:\n"
         "  --images PATH    RGB888 TIFF directory\n"
         "  --manifest PATH  filename,volume,name manifest CSV\n"
         "  --results PATH   output directory\n"
@@ -54,7 +55,7 @@ void help()
         "  --k-first N      first K (default 24)\n"
         "  --k-step N       K increment (default 24)\n"
         "  --k-last N       last K (default 384)\n"
-        "  --samples N      horizontal-correlation samples (sweep only, default 3000)\n";
+        "  --samples N      horizontal-correlation samples (sweep pass, default 3000)\n";
 }
 
 }  // namespace
@@ -75,7 +76,7 @@ int main(int argc, char** argv)
             std::cout << "All translated RGB888 MATLAB tests passed.\n";
             return 0;
         }
-        if (command != "sweep" && command != "analysis") {
+        if (command != "run-tests") {
             throw std::invalid_argument("unknown command '" + command + "'");
         }
 
@@ -108,18 +109,14 @@ int main(int argc, char** argv)
                 step = parse_size(value, name);
             } else if (name == "--k-last") {
                 last = parse_size(value, name);
-            } else if (name == "--samples" && command == "sweep") {
+            } else if (name == "--samples") {
                 options.correlation_samples = parse_size(value, name);
             } else {
                 throw std::invalid_argument(command + " does not accept " + name);
             }
         }
         options.k_values = xormap_color::rgb888::k_values(first, step, last);
-        if (command == "sweep") {
-            xormap_color::rgb888::sweep(options, std::cout);
-        } else {
-            xormap_color::rgb888::analysis(options, std::cout);
-        }
+        xormap_color::rgb888::run_tests(options, std::cout);
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "error: " << error.what() << '\n';

@@ -6,7 +6,7 @@ OPENSSL_ROOT_DIR ?= $(shell command -v $(BREW) >/dev/null 2>&1 && $(BREW) --pref
 
 CMAKE_ARGS := $(if $(OPENSSL_ROOT_DIR),-DOPENSSL_ROOT_DIR=$(OPENSSL_ROOT_DIR))
 
-.PHONY: all configure build test verify sweep analysis clean
+.PHONY: all configure build test verify run-tests clean
 
 all: build
 
@@ -22,11 +22,8 @@ test: build
 verify: build
 	./$(BUILD_DIR)/xormap_rgb888 verify
 
-sweep: build
-	./$(BUILD_DIR)/xormap_rgb888 sweep
-
-analysis: build
-	./$(BUILD_DIR)/xormap_rgb888 analysis
+run-tests: build
+	./$(BUILD_DIR)/xormap_rgb888 run-tests
 
 clean:
 	$(CMAKE) -E remove_directory $(BUILD_DIR)
