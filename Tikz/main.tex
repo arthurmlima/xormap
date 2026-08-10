@@ -1,0 +1,153 @@
+\documentclass{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{xcolor}
+\input{config.tex}
+\title{xormap --- Sweep/Analysis Results (TikZ)}
+\author{}
+\date{}
+\begin{document}
+\maketitle
+\noindent This document assembles every plot generated from the
+\texttt{sweep\_k*.csv} results (see the repository root \texttt{README.md}
+for the full data tables and chi-square pass-rate summary). Two panel
+types from the native PDF reports --- the per-image pixel histogram and
+the plain-vs-cipher chi-square distribution --- are not reproduced here
+because their underlying counts are not exported to any CSV; see
+\texttt{Tikz/README.md} for details.
+
+\section{Grayscale}
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_entropy.tex}
+  \caption{Cipher/normalized entropy --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_correlation.tex}
+  \caption{Horizontal correlation --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_npcr_uaci_plaintext.tex}
+  \caption{NPCR/UACI (plaintext bit flip) --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_npcr_uaci_key.tex}
+  \caption{NPCR/UACI (key bit flip) --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_wrongkey_decryption_psnr.tex}
+  \caption{Wrong-key decryption PSNR --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_bitstudy_npcr.tex}
+  \caption{NPCR by flipped key-bit position --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_chi_square.tex}
+  \caption{Cipher chi-square --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_psnr_plain_cipher.tex}
+  \caption{Plain vs cipher PSNR --- Grayscale.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/gray_psnr_plain_wrongkey.tex}
+  \caption{Plain vs wrong-key decryption PSNR --- Grayscale.}
+\end{figure}
+
+\clearpage
+
+\section{RGB888}
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_entropy.tex}
+  \caption{Cipher/normalized entropy --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_correlation.tex}
+  \caption{Horizontal correlation --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_npcr_uaci_plaintext.tex}
+  \caption{NPCR/UACI (plaintext bit flip) --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_npcr_uaci_key.tex}
+  \caption{NPCR/UACI (key bit flip) --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_wrongkey_decryption_psnr.tex}
+  \caption{Wrong-key decryption PSNR --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_bitstudy_npcr.tex}
+  \caption{NPCR by flipped key-bit position --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_chi_square.tex}
+  \caption{Cipher chi-square --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_psnr_plain_cipher.tex}
+  \caption{Plain vs cipher PSNR --- RGB888.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb888_psnr_plain_wrongkey.tex}
+  \caption{Plain vs wrong-key decryption PSNR --- RGB888.}
+\end{figure}
+
+\clearpage
+
+\section{RGB565}
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb565_entropy.tex}
+  \caption{Cipher/normalized entropy --- RGB565.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb565_correlation.tex}
+  \caption{Horizontal correlation --- RGB565.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \input{plots/rgb565_npcr_uaci_plaintext.tex}
+  \caption{NPCR/UACI (plaintext bit flip) --- RGB565.}
+\end{figure}
+
+\clearpage
+
+\end{document}

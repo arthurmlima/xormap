@@ -1,0 +1,13 @@
+\begin{tikzpicture}
+\begin{axis}[
+    xormap plot,
+    title={By flipped key-bit position --- Grayscale},
+    ylabel={NPCR (\%)},
+    xmin=6, xmax=402,
+]
+\addplot[xormap scatter] table[x=K, y=value, col sep=comma] {../data/gray_bitstudy_npcr_points.csv};
+\addplot[xormap mean line, color=xormapBlue] table[x=K, y=mean, col sep=comma] {../data/gray_bitstudy_npcr_means.csv};
+\addplot[xormap ideal line] coordinates {(6,99.609375) (402,99.609375)};
+\legend{individual images,mean,ideal}
+\end{axis}
+\end{tikzpicture}
