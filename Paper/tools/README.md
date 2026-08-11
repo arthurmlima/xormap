@@ -42,15 +42,23 @@ used; nothing in this tool calls it.)
 ./export_rgb888_figure "$RGB888/images/house.tiff" 384 ../data house
 ```
 
-Then downsample the plain/cipher TIFFs to the small PNGs `main.tex`
-actually embeds (the correlation/histogram CSVs are used at full
-resolution directly — no thinning needed once TeX Live's engine memory is
-raised per `Tikz/README.md`):
+Then render the plain/cipher TIFFs as true-vector TikZ pictures (one
+`\fill` rectangle per pixel, box-downsampled to keep file size and compile
+time bounded — see `gen_vector_image.py`'s docstring for the measured
+scaling and why this needed several `texmf.cnf` memory pools raised, not
+just `main_memory`, per `Tikz/README.md`). The correlation/histogram CSVs
+are used at full resolution directly, no thinning needed:
 
-```python
-from PIL import Image
-for name in ("gray_plain", "gray_cipher", "house_plain", "house_cipher"):
-    im = Image.open(f"../data/{name}.tiff")
-    im.thumbnail((300, 300), Image.LANCZOS)
-    im.save(f"../img/{name}.png", optimize=True)
+```sh
+micromamba run -n xormap python3 gen_vector_image.py \
+  ../data/gray_plain.tiff  ../img/gray_plain_vec.tex  256 L   '0.235\textwidth'
+micromamba run -n xormap python3 gen_vector_image.py \
+  ../data/gray_cipher.tiff ../img/gray_cipher_vec.tex 256 L   '0.235\textwidth'
+micromamba run -n xormap python3 gen_vector_image.py \
+  ../data/house_plain.tiff ../img/house_plain_vec.tex 256 RGB '0.235\textwidth'
+micromamba run -n xormap python3 gen_vector_image.py \
+  ../data/house_cipher.tiff ../img/house_cipher_vec.tex 256 RGB '0.235\textwidth'
 ```
+
+`main.tex` then `\input`s these four `.tex` files directly (not
+`\includegraphics`) inside Fig. 4's figure environment.

@@ -303,14 +303,16 @@ Table~\ref{tab:chi2} at this $K$.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.235\textwidth]{img/gray_plain.png}\hfill
-\includegraphics[width=0.235\textwidth]{img/gray_cipher.png}
+\input{img/gray_plain_vec.tex}\hfill
+\input{img/gray_cipher_vec.tex}
 
 \vspace{2pt}
-\includegraphics[width=0.235\textwidth]{img/house_plain.png}\hfill
-\includegraphics[width=0.235\textwidth]{img/house_cipher.png}
+\input{img/house_plain_vec.tex}\hfill
+\input{img/house_cipher_vec.tex}
 \caption{Plaintext (left) and ciphertext (right) at $K=384$: grayscale
-\texttt{5.3.01} (top), RGB888 \texttt{house} (bottom).}
+\texttt{5.3.01} (top), RGB888 \texttt{house} (bottom). Each is a true
+vector picture (one filled rectangle per pixel, box-downsampled to
+$256\times256$), not a raster image.}
 \label{fig:images}
 \end{figure}
 

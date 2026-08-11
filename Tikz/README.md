@@ -64,17 +64,45 @@ Plotting the complete per-image scatter (2544 points for grayscale) across
 many large figures in one 21-figure document needs more memory than
 stock TeX ships with: the classic web2c default is `main_memory =
 5000000`, and this document exceeds it. Real TeX Live makes that tunable
-(unlike tectonic, which doesn't expose it at all): `/home/arthur/texlive
-/2026/texmf-dist/web2c/texmf.cnf` has `main_memory` raised to 12,000,000
-words (`extra_mem_top`/`extra_mem_bot` also raised to 4,000,000), followed
-by `fmtutil-sys --byfmt pdflatex/latex/xelatex` to rebuild the format
-files against the new limit. 12M is `pdftex`'s actual ceiling — it was
-found by binary search; values above ~12.5M make format generation fail
-with `Ouch---my internal constants have been clobbered!---case 14` (a
-compiled-in bound in this pdftex build). `xetex` accepted much higher
-(tested to 64M) without complaint. If you reinstall TeX Live from scratch,
-you'll need to reapply this bump and rerun `fmtutil-sys` before this
-document (or anything similarly figure-heavy) will compile.
+(unlike tectonic, which doesn't expose it at all).
+`/home/arthur/texlive/2026/texmf-dist/web2c/texmf.cnf` currently has:
+
+```
+main_memory     = 12000000    % pdftex's real compiled ceiling (see below)
+extra_mem_top   = 100000000
+extra_mem_bot   = 100000000
+pool_size       = 50000000
+string_vacancies = 500000
+max_strings     = 2000000
+```
+
+...followed by `fmtutil-sys --byfmt pdflatex/latex/xelatex` to rebuild the
+format files against the new limits — required after any edit here, or
+the change has no effect. Two different pools turned out to matter, found
+by hitting each one in turn on real documents rather than guessing:
+
+- **`main_memory`**: `pdftex` genuinely cannot go above ~12.5M for this
+  build — found by binary search; anything higher fails to even *build*
+  the format, with `Ouch---my internal constants have been
+  clobbered!---case 14` (a compiled-in bound, not a runtime one).
+  `extra_mem_top`/`extra_mem_bot` are separate pools without that ceiling
+  — tested working up to 300M each; settled on 100M as comfortable
+  headroom without being gratuitous. `xetex` never hit this bound at all
+  (tested to 64M on `main_memory` directly, no complaint).
+- **`pool_size`/`max_strings`/`string_vacancies`**: hit by
+  `Paper/main.tex`, not this document — see `Paper/tools/README.md`.
+  Rendering real images as true-vector pixel grids (one `\fill` per pixel)
+  creates one dynamically-computed xcolor color string per pixel; at
+  262,144 pixels across four images in one document, that exhausts the
+  *string pool* (identifiers/color names), a completely different
+  resource from `main_memory` (raw token/node memory). The error looks
+  the same at a glance (`TeX capacity exceeded`) but names a different
+  pool (`pool size=...` vs `main memory size=...`) — worth reading the
+  exact error before assuming it's the same knob as last time.
+
+If you reinstall TeX Live from scratch, you'll need to reapply all of
+this and rerun `fmtutil-sys` before either figure-heavy document will
+compile.
 
 ## What's included
 
