@@ -56,6 +56,33 @@
                             color=xormapOrange, opacity=0.5 },
   paper corr cipher/.style={ only marks, mark=*, mark size=0.5pt,
                              color=xormapBlue, opacity=0.5 },
+  % Three equal panels across a figure* (plain image | cipher image |
+  % correlation) -- grayscale has one channel, so one correlation panel.
+  paper third plot/.style={
+    width=0.30\textwidth, height=0.30\textwidth,
+    grid=both,
+    grid style={line width=0.1pt, draw=black!10},
+    major grid style={line width=0.2pt, draw=black!25},
+    tick label style={font=\scriptsize},
+    label style={font=\scriptsize},
+    title style={font=\scriptsize},
+    legend style={font=\tiny, draw=black!30, fill=white,
+                  fill opacity=0.85, text opacity=1},
+    legend cell align={left},
+    every axis plot/.append style={line width=0.8pt},
+  },
+  % Five equal panels across a figure* (plain image | cipher image | R | G
+  % | B correlation) -- RGB888 has three channels, one panel each.
+  paper fifth plot/.style={
+    width=0.185\textwidth, height=0.185\textwidth,
+    grid=both,
+    grid style={line width=0.1pt, draw=black!10},
+    major grid style={line width=0.2pt, draw=black!25},
+    tick label style={font=\tiny},
+    label style={font=\tiny},
+    title style={font=\tiny},
+    every axis plot/.append style={line width=0.6pt},
+  },
 }
 
 \begin{document}
@@ -193,7 +220,7 @@ $\mathrm{UACI}_{\text{ideal}} = 100 \cdot (2^L{+}1)/(3 \cdot 2^L)$
     },
 ]
 \addplot[paper scatter] table[x=K,y=value,col sep=comma]
-    {../Tikz/data/gray_entropy_points_sample.csv};
+    {../Tikz/data/gray_entropy_points.csv};
 \addplot[paper mean, color=xormapOrange] table[x=K,y=mean,col sep=comma]
     {../Tikz/data/gray_entropy_means.csv};
 \addplot[paper ideal] coordinates {(6,8.0) (402,8.0)};
@@ -289,38 +316,27 @@ The aggregate statistics above are corroborated directly by two
 representative images encrypted at $K=384$: the USC-SIPI grayscale test
 image \texttt{5.3.01} ($1024\times1024$) and the RGB888 color image
 \texttt{house} ($512\times512$), both from the corpora in
-Table~\ref{tab:setup}. Fig.~\ref{fig:images} shows each plaintext next to
-its ciphertext; Fig.~\ref{fig:correlation} shows horizontal adjacent-pixel
-correlation for both, plaintext versus cipher; Fig.~\ref{fig:histogram}
-shows the corresponding pixel-value histograms. For \texttt{5.3.01},
-horizontal correlation drops from $0.979$ (plaintext) to $-0.034$
-(cipher); for \texttt{house} (red channel), from $0.952$ to $0.013$ — in
-both cases the strong diagonal structure visible in the plaintext scatter
-collapses to an uncorrelated cloud, and the corresponding histogram
-flattens from the image's natural, highly non-uniform tonal distribution
-toward the near-flat cipher histogram already quantified by
-Table~\ref{tab:chi2} at this $K$.
+Table~\ref{tab:setup}. Fig.~\ref{fig:gray-panel} shows the grayscale
+plaintext, ciphertext, and horizontal adjacent-pixel correlation;
+Fig.~\ref{fig:house-panel} shows the same for \texttt{house}, with
+correlation broken out per channel; Fig.~\ref{fig:histogram} shows the
+corresponding pixel-value histograms. For \texttt{5.3.01}, horizontal
+correlation drops from $0.979$ (plaintext) to $-0.034$ (cipher); for
+\texttt{house}, from $0.952/0.935/0.969$ (R/G/B plaintext) to
+$0.013/{-0.030}/{-0.027}$ (R/G/B cipher) — in every case the strong
+diagonal structure visible in the plaintext scatter collapses to an
+uncorrelated cloud, and the corresponding histogram flattens from the
+image's natural, highly non-uniform tonal distribution toward the
+near-flat cipher histogram already quantified by Table~\ref{tab:chi2} at
+this $K$.
 
-\begin{figure}[htbp]
+\begin{figure*}[htbp]
 \centering
-\input{img/gray_plain_vec.tex}\hfill
-\input{img/gray_cipher_vec.tex}
-
-\vspace{2pt}
-\input{img/house_plain_vec.tex}\hfill
-\input{img/house_cipher_vec.tex}
-\caption{Plaintext (left) and ciphertext (right) at $K=384$: grayscale
-\texttt{5.3.01} (top), RGB888 \texttt{house} (bottom). Each is a true
-vector picture (one filled rectangle per pixel, box-downsampled to
-$256\times256$), not a raster image.}
-\label{fig:images}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
+\includegraphics[width=0.30\textwidth]{img/gray_plain_full.png}\hfill
+\includegraphics[width=0.30\textwidth]{img/gray_cipher_full.png}\hfill
 \begin{tikzpicture}
-\begin{axis}[paper half plot,
-    title={Grayscale (\texttt{5.3.01})},
+\begin{axis}[paper third plot,
+    title={Horizontal correlation},
     xlabel={pixel $(x,y)$}, ylabel={pixel $(x,y{+}1)$},
     xmin=0, xmax=255, ymin=0, ymax=255,
 ]
@@ -328,26 +344,52 @@ $256\times256$), not a raster image.}
     {data/gray_correlation.csv};
 \addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
     {data/gray_correlation.csv};
-\legend{plain,cipher}
-\end{axis}
-\end{tikzpicture}\hfill
-\begin{tikzpicture}
-\begin{axis}[paper half plot,
-    title={RGB888 (\texttt{house}), R channel},
-    xlabel={pixel $(x,y)$}, ylabel={pixel $(x,y{+}1)$},
-    xmin=0, xmax=255, ymin=0, ymax=255,
-]
-\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
-    {data/house_correlation.csv};
-\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
-    {data/house_correlation.csv};
 \legend{plain,cipher}
 \end{axis}
 \end{tikzpicture}
-\caption{Horizontal adjacent-pixel correlation, plain vs.\ cipher, $K=384$
-(2000 sampled pixel pairs per series).}
-\label{fig:correlation}
-\end{figure}
+\caption{Grayscale \texttt{5.3.01}, $K=384$: plaintext and ciphertext
+(full-resolution $1024\times1024$ raster) and horizontal adjacent-pixel
+correlation (vector, 2000 sampled pixel pairs per series).}
+\label{fig:gray-panel}
+\end{figure*}
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=0.185\textwidth]{img/house_plain_full.png}\hfill
+\includegraphics[width=0.185\textwidth]{img/house_cipher_full.png}\hfill
+\begin{tikzpicture}
+\begin{axis}[paper fifth plot, title={R correlation},
+    xmin=0, xmax=255, ymin=0, ymax=255]
+\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
+    {data/house_correlation_r.csv};
+\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
+    {data/house_correlation_r.csv};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[paper fifth plot, title={G correlation},
+    xmin=0, xmax=255, ymin=0, ymax=255]
+\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
+    {data/house_correlation_g.csv};
+\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
+    {data/house_correlation_g.csv};
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[paper fifth plot, title={B correlation},
+    xmin=0, xmax=255, ymin=0, ymax=255]
+\addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
+    {data/house_correlation_b.csv};
+\addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
+    {data/house_correlation_b.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{RGB888 \texttt{house}, $K=384$: plaintext and ciphertext
+(full-resolution $512\times512$ raster) and horizontal adjacent-pixel
+correlation per channel (vector, 2000 sampled pixel pairs per series;
+orange = plaintext, blue = cipher, as in Fig.~\ref{fig:gray-panel}).}
+\label{fig:house-panel}
+\end{figure*}
 
 \begin{figure}[htbp]
 \centering

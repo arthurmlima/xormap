@@ -2,9 +2,10 @@
 
 Two throwaway C++ programs that encrypt one real image with the project's
 actual cipher (same library code as everything else — no reimplementation)
-and export what `Paper/main.tex`'s vector figures need: plain/cipher TIFFs,
-a 256-level pixel histogram (per channel for RGB888), and horizontal
-adjacent-pixel correlation sample pairs (`collect_pairs=true`).
+and export what `Paper/main.tex`'s figures need: plain/cipher TIFFs, a
+256-level pixel histogram (per channel for RGB888), and horizontal
+adjacent-pixel correlation sample pairs (`collect_pairs=true`) — one set
+per channel for RGB888 (R/G/B), a single set for grayscale.
 
 ## Build
 
@@ -42,23 +43,28 @@ used; nothing in this tool calls it.)
 ./export_rgb888_figure "$RGB888/images/house.tiff" 384 ../data house
 ```
 
-Then render the plain/cipher TIFFs as true-vector TikZ pictures (one
-`\fill` rectangle per pixel, box-downsampled to keep file size and compile
-time bounded — see `gen_vector_image.py`'s docstring for the measured
-scaling and why this needed several `texmf.cnf` memory pools raised, not
-just `main_memory`, per `Tikz/README.md`). The correlation/histogram CSVs
-are used at full resolution directly, no thinning needed:
+Produces `<tag>_plain.tiff`, `<tag>_cipher.tiff`, `<tag>_histogram.csv`,
+and correlation CSVs (`gray_correlation.csv`, or
+`house_correlation_{r,g,b}.csv` per channel).
 
-```sh
-micromamba run -n xormap python3 gen_vector_image.py \
-  ../data/gray_plain.tiff  ../img/gray_plain_vec.tex  256 L   '0.235\textwidth'
-micromamba run -n xormap python3 gen_vector_image.py \
-  ../data/gray_cipher.tiff ../img/gray_cipher_vec.tex 256 L   '0.235\textwidth'
-micromamba run -n xormap python3 gen_vector_image.py \
-  ../data/house_plain.tiff ../img/house_plain_vec.tex 256 RGB '0.235\textwidth'
-micromamba run -n xormap python3 gen_vector_image.py \
-  ../data/house_cipher.tiff ../img/house_cipher_vec.tex 256 RGB '0.235\textwidth'
+Then convert the plain/cipher TIFFs to PNG at **full native resolution**
+(no downsampling — `main.tex` embeds these as ordinary raster images via
+`\includegraphics`, sized down for the page but at full source
+resolution/quality):
+
+```python
+from PIL import Image
+for name in ("gray_plain", "gray_cipher", "house_plain", "house_cipher"):
+    Image.open(f"../data/{name}.tiff").save(f"../img/{name}_full.png", optimize=True)
 ```
 
-`main.tex` then `\input`s these four `.tex` files directly (not
-`\includegraphics`) inside Fig. 4's figure environment.
+The histogram/correlation CSVs are used at full resolution directly by
+pgfplots (genuinely vector, no thinning needed once TeX Live's engine
+memory is raised per `Tikz/README.md`). An earlier pass tried rendering
+the plain/cipher images themselves as true-vector pixel grids (one `\fill`
+per pixel); that worked but cost ~50s and ~5MB of `.tex` source per image
+at a 256x256 downsample, and needed several `texmf.cnf` memory pools
+raised well beyond what the correlation/histogram plots need. Raster at
+full native resolution is what `main.tex` actually uses now — much
+faster, much smaller, and higher fidelity than the downsampled vector
+version was.

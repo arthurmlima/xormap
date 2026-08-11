@@ -1,7 +1,7 @@
 // One-off export tool: encrypt a single RGB888 image with the project's
 // real cipher and write the plain/cipher TIFFs, per-channel pixel
-// histograms, and adjacent-pixel correlation samples (red channel) the
-// paper's figures are built from. Reuses xormap_color/xormap_image's
+// histograms, and adjacent-pixel correlation samples for each of R/G/B
+// the paper's figures are built from. Reuses xormap_color/xormap_image's
 // tested library functions directly (no reimplementation of the cipher).
 //
 // Usage: export_rgb888_figure <image.tiff> <K> <out_dir> <tag>
@@ -95,20 +95,26 @@ int main(int argc, char** argv)
 
         constexpr std::size_t kSamples = 2000;
         constexpr std::uint32_t kSeed = 1;
-        const auto plain_corr = adjacent_correlation(
-            plain_channels[0], plain.width, plain.height,
-            AdjacentDirection::Horizontal, kSamples, kSeed, true);
-        const auto cipher_corr = adjacent_correlation(
-            cipher_channels[0], plain.width, plain.height,
-            AdjacentDirection::Horizontal, kSamples, kSeed, true);
-        write_correlation_csv(out_dir / (tag + "_correlation.csv"),
-                              *plain_corr.pairs, *cipher_corr.pairs);
+        constexpr std::array<char, 3> kChannelLetters{'r', 'g', 'b'};
+        for (int c = 0; c < 3; ++c) {
+            const auto cu = static_cast<std::size_t>(c);
+            const auto plain_corr = adjacent_correlation(
+                plain_channels[cu], plain.width, plain.height,
+                AdjacentDirection::Horizontal, kSamples, kSeed, true);
+            const auto cipher_corr = adjacent_correlation(
+                cipher_channels[cu], plain.width, plain.height,
+                AdjacentDirection::Horizontal, kSamples, kSeed, true);
+            write_correlation_csv(
+                out_dir / (tag + "_correlation_" + kChannelLetters[cu] + ".csv"),
+                *plain_corr.pairs, *cipher_corr.pairs);
+            std::cout << tag << " " << kChannelLetters[cu]
+                      << " plain corrH=" << plain_corr.correlation
+                      << " cipher corrH=" << cipher_corr.correlation << '\n';
+        }
 
         std::cout << "wrote " << tag << "_{plain,cipher}.tiff, "
-                  << tag << "_histogram.csv, " << tag << "_correlation.csv to "
-                  << out_dir << '\n'
-                  << "plain R corrH=" << plain_corr.correlation
-                  << " cipher R corrH=" << cipher_corr.correlation << '\n';
+                  << tag << "_histogram.csv, and "
+                  << tag << "_correlation_{r,g,b}.csv to " << out_dir << '\n';
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "error: " << error.what() << '\n';
