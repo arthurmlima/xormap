@@ -43,8 +43,9 @@ used; nothing in this tool calls it.)
 ```
 
 Then downsample the plain/cipher TIFFs to the small PNGs `main.tex`
-actually embeds, and thin the 2000-sample correlation CSVs to ~500 points
-(same TeX-memory reasoning as `Tikz/README.md`):
+actually embeds (the correlation/histogram CSVs are used at full
+resolution directly — no thinning needed once TeX Live's engine memory is
+raised per `Tikz/README.md`):
 
 ```python
 from PIL import Image
@@ -52,14 +53,4 @@ for name in ("gray_plain", "gray_cipher", "house_plain", "house_cipher"):
     im = Image.open(f"../data/{name}.tiff")
     im.thumbnail((300, 300), Image.LANCZOS)
     im.save(f"../img/{name}.png", optimize=True)
-```
-
-```python
-import csv
-for tag in ("gray", "house"):
-    with open(f"../data/{tag}_correlation.csv", newline="") as f:
-        r = csv.reader(f); header = next(r); rows = list(r)
-    stride = max(1, -(-len(rows) // 600))
-    with open(f"../data/{tag}_correlation_sample.csv", "w", newline="") as f:
-        w = csv.writer(f); w.writerow(header); w.writerows(rows[::stride])
 ```

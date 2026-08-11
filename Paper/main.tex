@@ -323,9 +323,9 @@ Table~\ref{tab:chi2} at this $K$.
     xmin=0, xmax=255, ymin=0, ymax=255,
 ]
 \addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
-    {data/gray_correlation_sample.csv};
+    {data/gray_correlation.csv};
 \addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
-    {data/gray_correlation_sample.csv};
+    {data/gray_correlation.csv};
 \legend{plain,cipher}
 \end{axis}
 \end{tikzpicture}\hfill
@@ -336,14 +336,14 @@ Table~\ref{tab:chi2} at this $K$.
     xmin=0, xmax=255, ymin=0, ymax=255,
 ]
 \addplot[paper corr plain] table[x=plain_x,y=plain_y,col sep=comma]
-    {data/house_correlation_sample.csv};
+    {data/house_correlation.csv};
 \addplot[paper corr cipher] table[x=cipher_x,y=cipher_y,col sep=comma]
-    {data/house_correlation_sample.csv};
+    {data/house_correlation.csv};
 \legend{plain,cipher}
 \end{axis}
 \end{tikzpicture}
 \caption{Horizontal adjacent-pixel correlation, plain vs.\ cipher, $K=384$
-(500 of 2000 sampled pixel pairs per series, evenly strided).}
+(2000 sampled pixel pairs per series).}
 \label{fig:correlation}
 \end{figure}
 

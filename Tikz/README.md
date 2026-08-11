@@ -14,11 +14,10 @@ Tikz/
   config.tex       one shared pgfplots style — load this once
   main.tex         a compilable document that \input's every plot below
   plots/*.tex       one tikzpicture per plot (21 total)
-  data/*.csv        the data each plot reads, three files per plot:
-                     <name>_points.csv        — every individual (image, K) value (full data)
-                     <name>_points_sample.csv — evenly-sampled subset, ~200-250 points,
-                                                 used only for the rendered scatter (see below)
-                     <name>_means.csv         — mean over images at each K
+  data/*.csv        the data each plot reads, two files per plot:
+                     <name>_points.csv — every individual (image, K) value (full data,
+                                          used for the rendered scatter too)
+                     <name>_means.csv  — mean over images at each K
 ```
 
 ## Usage
@@ -35,21 +34,23 @@ In your own document:
 \end{figure}
 ```
 
-Or compile `Tikz/main.tex` directly to get every plot in one PDF. This
-environment had no LaTeX toolchain installed and no sudo access, so it was
-verified with [tectonic](https://tectonic-typesetting.github.io/) (a
-self-contained TeX engine with no separate texlive-core install), pulled in
-via a local, non-root micromamba environment:
+Or compile `Tikz/main.tex` directly to get every plot in one PDF:
 
 ```sh
-micromamba create -n latex -c conda-forge tectonic
-cd Tikz && micromamba run -n latex tectonic main.tex
+export PATH="/home/arthur/texlive/2026/bin/x86_64-linux:$PATH"
+cd Tikz && pdflatex main.tex
 ```
 
-This produces a 21-figure, 10-page PDF. It should compile the same way with
-a regular `pdflatex`/`xelatex`/`lualatex` install as long as `pgfplots` is
-available (`pdflatex -output-directory Tikz Tikz/main.tex`, run from the
-repo root, or `cd Tikz && pdflatex main.tex`).
+This environment had no LaTeX toolchain and no sudo access, so a full TeX
+Live 2026 (`scheme-full`) was installed to `/home/arthur/texlive/2026`
+under the user's own home directory — a normal, complete, unattended
+`install-tl` run (`perl install-tl -profile texlive.profile`, `TEXDIR`
+pointing under `$HOME`), no root needed. `xelatex`/`lualatex` work the
+same way. (An earlier pass used
+[tectonic](https://tectonic-typesetting.github.io/), a self-contained
+engine with no separate install; it worked but has a fixed, non-tunable
+TeX memory ceiling — see below — so it was replaced with a real TeX Live
+once one could actually be installed.)
 
 Each plot file references its data as `data/<file>.csv` — a path relative
 to wherever compilation runs from (`Tikz/`, i.e. the directory containing
@@ -57,17 +58,23 @@ to wherever compilation runs from (`Tikz/`, i.e. the directory containing
 — that's just how LaTeX resolves `\input`. Compile from inside `Tikz/`, or
 from the repo root, keeping `config.tex`, `plots/`, and `data/` together.
 
-### Why the scatter series is a sampled subset, not the full data
+### A note on TeX engine memory
 
-The first full-document compile hit tectonic's fixed TeX memory limit
-(`main memory size=5000000`) partway through — plotting the complete
-per-image scatter (2544 points for grayscale, repeated across many large
-figures in one document) accumulates too much memory across a 21-figure
-run. The `_points.csv` files still hold every value; only the rendered
-scatter marks use `_points_sample.csv`, an evenly-strided subset capped at
-~200-250 points per plot, enough to show the spread without exhausting
-memory. The mean line and ideal reference line — the two things doing most
-of the actual work in each plot — always use the full data.
+Plotting the complete per-image scatter (2544 points for grayscale) across
+many large figures in one 21-figure document needs more memory than
+stock TeX ships with: the classic web2c default is `main_memory =
+5000000`, and this document exceeds it. Real TeX Live makes that tunable
+(unlike tectonic, which doesn't expose it at all): `/home/arthur/texlive
+/2026/texmf-dist/web2c/texmf.cnf` has `main_memory` raised to 12,000,000
+words (`extra_mem_top`/`extra_mem_bot` also raised to 4,000,000), followed
+by `fmtutil-sys --byfmt pdflatex/latex/xelatex` to rebuild the format
+files against the new limit. 12M is `pdftex`'s actual ceiling — it was
+found by binary search; values above ~12.5M make format generation fail
+with `Ouch---my internal constants have been clobbered!---case 14` (a
+compiled-in bound in this pdftex build). `xetex` accepted much higher
+(tested to 64M) without complaint. If you reinstall TeX Live from scratch,
+you'll need to reapply this bump and rerun `fmtutil-sys` before this
+document (or anything similarly figure-heavy) will compile.
 
 ## What's included
 
