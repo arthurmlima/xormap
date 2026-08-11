@@ -1,0 +1,18 @@
+Linux thyme 5.4.0-150-generic #167~18.04.1-Ubuntu SMP Wed May 24 00:51:42 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux
+Description:	Ubuntu 18.04.6 LTS
+Architecture:        x86_64
+Byte Order:          Little Endian
+CPU(s):              40
+Thread(s) per core:  2
+Core(s) per socket:  10
+Socket(s):           2
+Model name:          Intel(R) Xeon(R) CPU E5-2640 v4 @ 2.40GHz
+CPU MHz:             2846.350
+CPU max MHz:         3400.0000
+CPU min MHz:         1200.0000
+L3 cache:            25600K
+MemTotal:       65855552 kB
+virt: none
+unknown
+Python 3.6.9 (default, Mar 10 2023, 16:46:00) 
+[GCC 8.4.0]
